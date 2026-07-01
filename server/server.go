@@ -101,14 +101,15 @@ func (s *Server) RoomBroadcast(users []*user.User, msg string) {
 // handler
 func (s *Server) Handler(conn net.Conn) {
 	//..当前链接的业务
-	//fmt.Println("链接建立成功")
 	usr := user.NewUser(conn)
 	go usr.ListenMessage(s.Disconnect)
+	done := make(chan struct{})
 	//用户上线业务
-
 	s.Online(usr)
 	//接受客户端发送的信息
 	go func() {
+		defer close(done)
+
 		buf := make([]byte, 4096)
 		for {
 			n, err := conn.Read(buf)
@@ -134,8 +135,7 @@ func (s *Server) Handler(conn net.Conn) {
 			s.DoMessage(usr, msg)
 		}
 	}()
-	//当前handler阻塞
-	select {}
+	<-done
 }
 
 // 启动服务器接口

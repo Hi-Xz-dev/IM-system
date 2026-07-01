@@ -44,3 +44,47 @@ IM-system/
 ├── web/
 ├── go.mod
 └── README.md
+
+# Design Decisions
+
+## Decision-001：统一消息发送入口
+
+### 背景
+
+项目中存在多处：
+
+```go
+user.C <- msg
+```
+
+消息发送方式不统一。
+
+### 决策
+
+统一使用：
+
+```go
+user.SendMsg(msg)
+```
+
+业务层禁止直接操作：
+
+```go
+user.C <- msg
+```
+
+真正的 TCP 写操作仅允许出现在：
+
+```go
+ListenMessage()
+```
+
+### 原因
+
+- 封装消息发送逻辑
+- 降低模块耦合
+- 后续方便扩展日志、限流、分布式发送
+
+### 状态
+
+✅ 已完成

@@ -111,9 +111,9 @@ func (s *Server) Handler(conn net.Conn) {
 	go func() {
 		defer close(done)
 		scanner := bufio.NewScanner(conn)
-		for scanner.Scan() {
+		for scanner.Scan() {//返回bool
 			usr.UpdateActiveTime()
-			msg := strings.TrimSpace(scanner.Text())
+			msg := strings.TrimSpace(scanner.Text())//取出读到的内容
 			if msg == "" {
 				continue
 			}
@@ -126,7 +126,7 @@ func (s *Server) Handler(conn net.Conn) {
 			//用户针对msg进行消息处理
 			s.DoMessage(usr, msg)
 		}
-		if err := scanner.Err(); err != nil {
+		if err := scanner.Err(); err != nil {//错误可能有两种 一种正常，另外是真错了
 			fmt.Println("Conn Read err:", err)
 		}
 		s.Offline(usr)

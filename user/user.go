@@ -15,6 +15,8 @@ type User struct {
 	ActiveTime int64 //心跳
 
 	CurrentRoom string //当前房间
+
+	IsClosed bool
 }
 
 // 创建一个用户API
@@ -28,9 +30,11 @@ func NewUser(conn net.Conn) *User {
 		conn:       conn,
 		ActiveTime: time.Now().Unix(), //时间初始化
 	}
-	//go u.ListenMessage(s.Disconnect)
-	//启动监听当前user channel消息的goroutine
 	return u
+}
+
+func (u *User) Close() {
+	u.conn.Close()
 }
 
 // 更新活跃时间

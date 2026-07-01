@@ -15,15 +15,21 @@ func (s *Server) Online(user *user.User) {
 }
 
 // 用户下线业务
-func (s *Server) Offline(user *user.User) {
+func (s *Server) Offline(usr *user.User) {
 	//用户下线，将用户从OnlineUsers中删除
 	s.mapLock.Lock()
-	if user.CurrentRoom != "" {
-		s.leaveRoomUnsafe(user)
+	if usr.IsClosed {
+		s.mapLock.Unlock()
+		return
 	}
-	delete(s.OnlineUsers, user.Name)
+	usr.IsClosed = true
+	if usr.CurrentRoom != "" {
+		s.leaveRoomUnsafe(usr)
+	}
+	delete(s.OnlineUsers, usr.Name)
 	s.mapLock.Unlock()
-	s.BroadCast(user, "已下线")
+	usr.Close()
+	s.BroadCast(usr, "已下线")
 }
 
 // 当前位置

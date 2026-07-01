@@ -3,8 +3,8 @@ package server
 import (
 	"IM-system/room"
 	"IM-system/user"
+	"bufio"
 	"fmt"
-	"io"
 	"net"
 	"strings"
 	"sync"
@@ -103,39 +103,35 @@ func (s *Server) Handler(conn net.Conn) {
 	//..当前链接的业务
 	usr := user.NewUser(conn)
 	go usr.ListenMessage(s.Disconnect)
+	//通知 Handler：读协程结束了，你也可以退出了
 	done := make(chan struct{})
 	//用户上线业务
 	s.Online(usr)
-	//接受客户端发送的信息
+	//启动读协程 负责读客户端发来的消息
 	go func() {
 		defer close(done)
-
-		buf := make([]byte, 4096)
-		for {
-			n, err := conn.Read(buf)
+		scanner := bufio.NewScanner(conn)
+		for scanner.Scan() {
 			usr.UpdateActiveTime()
-			if n == 0 {
-				s.Offline(usr)
-				return
+			msg := strings.TrimSpace(scanner.Text())
+			if msg == "" {
+				continue
 			}
-			if err != nil && err != io.EOF {
-				fmt.Println("Conn Read err:", err)
-				s.Offline(usr)
-				conn.Close()
-				return
-			}
-			//提取用户的信息
-			msg := strings.TrimSpace(string(buf[:n]))
+
 			if msg == "quit" {
 				s.Offline(usr)
-				conn.Close()
+				_ = conn.Close()
 				return
 			}
 			//用户针对msg进行消息处理
 			s.DoMessage(usr, msg)
 		}
+		if err := scanner.Err(); err != nil {
+			fmt.Println("Conn Read err:", err)
+		}
+		s.Offline(usr)
+		_ = conn.Close()
 	}()
-	<-done
 }
 
 // 启动服务器接口

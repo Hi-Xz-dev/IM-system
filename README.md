@@ -1,148 +1,229 @@
-# IM-system v1.0
+# Go IM System
 
-基于 Go 的实时即时通讯系统，TCP 长连接 + 自定义文本协议。
+> A high-performance Instant Messaging System built with Go.
 
-## 快速启动
+---
 
-```bash
-# 终端1 — 启动服务端
-go run cmd/server/main.go
+# Project Overview
 
-# 终端2 — 启动客户端 A
-go run cmd/client/main.go
+Go IM System 是一个基于 Go 开发的即时通信系统。
 
-# 终端3 — 启动客户端 B
-go run cmd/client/main.go
+项目最终目标不是实现一个简单的聊天室，而是逐步演进为一个具备工程化能力、可扩展、支持多实例部署的 Distributed IM System。
+
+整个项目将按照真实后端系统的开发流程持续迭代，而不是一次性完成所有功能。
+
+---
+
+# Design Philosophy
+
+本项目遵循以下原则：
+
+- 先保证正确，再考虑性能
+- 先保证稳定，再增加功能
+- 每次只解决一个问题
+- 每个模块只负责一件事情
+- 所有重构必须保持系统可运行
+- 所有新增功能必须建立在稳定架构之上
+
+---
+
+# Development Roadmap
+
+## Phase 1：Standalone IM
+
+目标：
+
+构建一个稳定、正确、可测试的单机 IM Server。
+
+重点完成：
+
+- Handler 生命周期管理
+- TCP 粘包 / 半包处理
+- SendMsg 重构
+- 所有 TCP 写统一出口
+- 优雅退出（Graceful Shutdown）
+- race detector
+- Unit Test
+- Benchmark
+
+完成本阶段后：
+
+项目可以作为 Go 后端实习项目。
+
+---
+
+## Phase 2：Engineering
+
+目标：
+
+让项目具备真实后端项目结构。
+
+包括：
+
+- Gin API 分层
+- DTO
+- Middleware
+- Config
+- Logger
+- JWT
+- bcrypt
+- MySQL
+- Repository
+
+数据库主要用于：
+
+- 用户登录
+- 历史消息
+- 离线消息
+
+---
+
+## Phase 3：Performance
+
+目标：
+
+用数据证明系统性能。
+
+包括：
+
+- pprof
+- Benchmark
+- 压测
+- 最大连接数
+- Messages / Second
+- CPU Analysis
+- Memory Analysis
+- Performance Optimization
+
+---
+
+## Phase 4：Distributed IM
+
+目标：
+
+演进为分布式即时通信系统。
+
+包括：
+
+- Redis
+- Online User Routing
+- Multi Gateway
+- Cross-node Private Chat
+- Cross-node Room Chat
+- Offline Message
+- Message Synchronization
+- Docker Compose
+- Kubernetes（Optional）
+
+完成本阶段后：
+
+项目正式升级为：
+
+Distributed IM System
+
+---
+
+# Why Refactor?
+
+项目第一版已经实现：
+
+- 用户上线/下线
+- 公聊
+- 私聊
+- 房间聊天
+- HTTP API
+
+随着功能增加，Server 同时负责：
+
+- TCP 连接管理
+- 用户管理
+- 房间管理
+- 消息广播
+- 命令解析
+- HTTP API
+
+导致：
+
+- 模块职责越来越多
+- 耦合越来越严重
+- 可维护性下降
+- 后续开发成本越来越高
+
+因此决定停止增加新功能，开始重构整个项目。
+
+重构目标不是修改功能，而是建立能够持续演进的架构。
+
+---
+
+# Refactoring Principles
+
+重构期间遵循以下原则：
+
+- 不新增聊天功能
+- 不修改通信协议
+- 每次只解决一个问题
+- 每次重构后保证项目可运行
+- 保持提交粒度尽可能小
+- 每完成一个阶段再进入下一阶段
+
+---
+
+# Current Stage
+
+当前项目处于：
+
+Phase 1：Standalone IM
+
+当前工作重点：
+
+- [ ] Handler 生命周期
+- [ ] TCP 粘包 / 半包
+- [ ] SendMsg 重构
+- [ ] TCP 写统一出口
+- [ ] Graceful Shutdown
+- [ ] race detector
+- [ ] Unit Test
+- [ ] Benchmark
+
+---
+
+# Long-term Architecture
+
+```
+                Client
+                   │
+            TCP / WebSocket
+                   │
+              Connection
+                   │
+              Gateway Layer
+                   │
+              Protocol Layer
+                   │
+               Logic Layer
+                   │
+              Message Hub
+                   │
+        ┌──────────┴──────────┐
+        │                     │
+      Storage              Cache
+      MySQL               Redis
 ```
 
-默认监听 `127.0.0.1:8080`，可通过参数修改：
-
-```bash
-go run cmd/server/main.go -ip 0.0.0.0 -port 8888
-go run cmd/client/main.go -ip 127.0.0.1 -port 8888
-```
-
-## 目录结构
+当前阶段仅实现：
 
 ```
-IM-system/
-├── cmd/
-│   ├── server/main.go     # 服务端入口
-│   └── client/main.go     # 客户端入口（终端交互）
-├── server/
-│   ├── server.go          # 生命周期：启动、连接、广播
-│   ├── user.go            # 用户操作：上线、下线、改名、私聊
-│   ├── room.go            # 房间操作：创建、加入、退出、群聊
-│   └── command.go         # 协议层：DoMessage 分发 + handler
-├── user/
-│   └── user.go            # User 模型
-├── room/
-│   └── room.go            # Room 模型
-└── go.mod
+Client
+    │
+TCP Connection
+    │
+Standalone IM Server
 ```
 
-## 通信协议
+后续逐步演进为完整的分布式架构。
 
-TCP 长连接，每条消息以 `\n` 结尾。
+---
 
-| 指令 | 格式 | 说明 |
-|---|---|---|
-| 公聊 | `任意文本` | 广播全体在线用户 |
-| 私聊 | `to\|用户名\|内容` | 发送指定用户 |
-| 改名 | `rename\|新名字` | 修改昵称（同步更新房间成员表）|
-| 在线列表 | `who` | 查询在线用户 |
-| 房间列表 | `rooms` | 所有房间及人数 |
-| 创建房间 | `create\|房间名` | 创建新房间（已在其他房间则自动退出）|
-| 加入房间 | `join\|房间名` | 加入已有房间 |
-| 退出房间 | `leave` | 退出当前房间 |
-| 群聊 | `room\|内容` | 发送到当前房间全体成员 |
-| 房间成员 | `members` | 查看当前房间成员列表 |
-| 当前位置 | `where` | 查看当前所在房间 |
-| 帮助 | `help` | 命令速查 |
-| 退出 | `quit` | 断开连接 |
+# License
 
-## 客户端使用
-
-```
-===== 主菜单 =====
-1.公聊模式        ← 任意文本广播
-2.私聊模式        ← to|user|msg
-3.更新用户名      ← rename|name
-4.房间功能        ← 进入子菜单
-5.帮助            ← 本地打印命令速查
-0.退出            ← 发送 quit 断开
-
-===== 房间功能 =====
-1.创建房间  2.加入房间  3.离开房间
-4.查看房间  5.当前房间  6.房间成员
-7.房间聊天  0.返回
-```
-
-## 架构设计
-
-```
-┌──────────┐    TCP 长连接    ┌──────────────────┐
-│ Client A │ ◄──────────────► │     Server        │
-│ (终端)   │                  │                   │
-└──────────┘                  │  OnlineUsers      │
-                              │  map[name]*User   │
-┌──────────┐                  │                   │
-│ Client B │ ◄──────────────► │  Rooms            │
-│ (终端)   │                  │  map[name]*Room   │
-└──────────┘                  │                   │
-                              │  Message chan     │
-┌──────────┐                  │  (全服广播)        │
-│ Client C │ ◄──────────────► │                   │
-│ (nc)     │                  └──────────────────┘
-└──────────┘
-```
-
-## 并发模型
-
-### 单锁 + Snapshot 模式
-
-```
-Lock → 复制数据到本地 slice → Unlock → 用 slice 做 IO
-  ↑                                      ↑
- 数据修改（快）                      不阻塞其他请求
-```
-
-一把 `sync.RWMutex` 保护 `OnlineUsers` 和 `Rooms`，所有读写锁不跨越 channel IO。
-
-### Goroutine 拓扑
-
-```
-main          → Accept 循环，每连接一个 go Handler
-Handler      → conn.Read 循环，阻塞读
-ListenMessager → 监听 Message chan，snapshot 后逐用户推送
-CleanOnlineUser → 每 10s 扫描超时用户（60s 无心跳踢出）
-每个 User      → ListenMessage goroutine（消费 C chan → conn.Write）
-```
-
-## 功能特性
-
-- **改名联动**：改名时同步更新房间成员表中的 key
-- **房间生命周期**：最后一个用户退出后自动删除房间
-- **自动退旧房**：创建/加入新房间时自动离开旧房间
-- **超时强踢**：60 秒无心跳自动下线并清理
-- **退房广播**：进出房间通知当前房间所有成员
-- **下线清理**：用户断开时自动退出房间并从在线表移除
-
-## 测试方式
-
-```bash
-# nc 裸调协议
-nc 127.0.0.1 8080
-rename|alice
-create|golang
-who
-
-# 客户端交互
-go run cmd/client/main.go
-```
-
-## 技术栈
-
-- Go 1.26
-- 标准库：net、sync、bufio
-- 无第三方依赖
+MIT

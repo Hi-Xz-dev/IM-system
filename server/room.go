@@ -4,11 +4,10 @@ import (
 	"IM-system/room"
 	"IM-system/user"
 	"fmt"
-
 )
 
-//房间人数
-func(s *Server)Members(u *user.User){
+// 房间人数
+func (s *Server) Members(u *user.User) {
 	s.mapLock.RLock()
 	roomName := u.CurrentRoom
 	if roomName == "" {
@@ -21,14 +20,14 @@ func(s *Server)Members(u *user.User){
 		s.mapLock.RUnlock()
 		u.C <- "房间不存在\n"
 		return
-	} 
+	}
 	members := make([]string, 0, len(r.Users))
-	for name := range r.Users{//只要名字
+	for name := range r.Users { //只要名字
 		members = append(members, name)
 	}
 	s.mapLock.RUnlock()
 	u.C <- "当前房间成员：\n"
-	for _, name := range members{
+	for _, name := range members {
 		u.C <- name + "\n"
 	}
 }
@@ -128,7 +127,7 @@ func (s *Server) CreateRoom(createuser *user.User, roomName string) {
 	}
 	//已进入房间 先退出
 	oldRoom := createuser.CurrentRoom
-	
+
 	if oldRoom != "" {
 		s.leaveRoomUnsafe(createuser)
 	}
@@ -158,4 +157,79 @@ func (s *Server) RoomChat(sender *user.User, content string) {
 	s.mapLock.Unlock()
 	msg := "[" + sender.CurrentRoom + "][" + sender.Name + "] " + content
 	s.RoomBroadcast(users, msg)
+}
+
+// 在线房间及人数
+func (s *Server) GetRooms() []RoomInfo {
+	s.mapLock.RLock()
+	defer s.mapLock.RUnlock()
+	// snapshot：锁内构建消息
+	rooms := make([]RoomInfo, 0, len(s.Rooms))
+	for name, r := range s.Rooms {
+		info := RoomInfo{
+			Name:  name,
+			Count: len(r.Users),
+		}
+		rooms = append(rooms, info)
+	}
+	return rooms
+}
+
+// 返回房间成员
+func (s *Server) GetMembers(roomName string) ([]string, bool) {
+	s.mapLock.RLock()
+	defer s.mapLock.RUnlock()
+	r, ok := s.Rooms[roomName]
+	if !ok {
+		return nil, false
+	}
+	roomUsers := make([]string, 0, len(r.Users))
+	for name := range r.Users {
+		roomUsers = append(roomUsers, name)
+	}
+	return roomUsers, true
+}
+
+// 加入房间
+func (s *Server) JoinRoom1(user, roomName string) (string, bool) {
+	s.mapLock.Lock()
+	defer s.mapLock.Unlock()
+	u, ok := s.OnlineUsers[user]
+	if !ok {
+		return "未找到用户", false
+	}
+	newRoom, ok := s.Rooms[roomName]
+	if !ok {
+		return "未找到房间", false
+	}
+	oldRoomName := u.CurrentRoom
+	if oldRoomName == roomName {
+		return "已加入房间", true
+	}
+	if oldRoomName != "" {
+		oldRoom, _ := s.Rooms[oldRoomName]
+		delete(oldRoom.Users, user) //删除旧房间
+	}
+	newRoom.Users[user] = u
+	u.CurrentRoom = roomName
+	return "加入房间", true
+}
+
+// 退出房间
+func (s *Server) LeaveRoom1(user string) (string, bool) {
+	s.mapLock.Lock()
+	defer s.mapLock.Unlock()
+	u, ok := s.OnlineUsers[user]
+	if !ok {
+		return "未找到用户", false
+	}
+	oldRoomName := u.CurrentRoom
+	if oldRoomName == "" {
+		return "未加入房间", true
+	}
+	if oldRoom, ok := s.Rooms[oldRoomName]; ok {
+		delete(oldRoom.Users, user)
+	}
+	u.CurrentRoom = ""
+	return "退出房间", true
 }

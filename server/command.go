@@ -1,103 +1,105 @@
 package server
 
 import (
+	"IM-system/internal/domain"
+	"IM-system/internal/protocol"
 	"IM-system/user"
-	"strings"
-
 )
 
 // 用户处理信息业务自定义IM协议 协议设计
 func (s *Server) DoMessage(usr *user.User, msg string) {
-	switch {
+	cmd := protocol.Parse(msg)
+	switch cmd.Type {
 	//用户查询当前在线人数
-	case msg == "who":
+	case domain.CmdWho:
 		s.handlerWho(usr)
 	//更改用户名
-	case strings.HasPrefix(msg, "rename|"):
-		s.handlerRename(usr, msg)
+	case domain.CmdRename:
+		s.handlerRename(usr, cmd.Args)
 	//私聊
-	case strings.HasPrefix(msg, "to|"):
-		s.handlerPrivateChat(usr, msg)
+	case domain.CmdPrivate:
+		s.handlerPrivateChat(usr, cmd.Args)
 	//显示房间
-	case msg == "rooms":
+	case domain.CmdRooms:
 		s.ShowRooms(usr)
 	//创建房间
-	case strings.HasPrefix(msg, "create|"):
-		s.handlerCreate(usr, msg)
+	case domain.CmdCreate:
+		s.handlerCreate(usr, cmd.Args)
 	//加入房间
-	case strings.HasPrefix(msg, "join|"):
-		s.handlerJoin(usr, msg)
+	case domain.CmdJoin:
+		s.handlerJoin(usr, cmd.Args)
 	//群聊功能
-	case strings.HasPrefix(msg, "room|"):
-		s.handlerRoomchat(usr, msg)
+	case domain.CmdRoom:
+		s.handlerRoomchat(usr, cmd.Args)
 	//退出房间
-	case msg == "leave":
+	case domain.CmdLeave:
 		s.LeaveRoom(usr)
 	//help
-	case msg == "help":
+	case domain.CmdHelp:
 		s.Help(usr)
 	//当前位置
-	case msg == "where":
+	case domain.CmdWhere:
 		s.Where(usr)
 	//房间人数
-	case msg == "members":
+	case domain.CmdMembers:
 		s.Members(usr)
 	default:
 		s.BroadCast(usr, msg)
 	}
 }
 
-//拆handler-XX函数
+// 拆handler-XX函数
 func (s *Server) handlerWho(usr *user.User) {
-		s.mapLock.RLock()
-		users := make([]*user.User, 0, len(s.OnlineUsers))
-		for _, cli := range s.OnlineUsers {
-			users = append(users, cli)
-		}
+	s.mapLock.RLock()
+	users := make([]*user.User, 0, len(s.OnlineUsers))
+	for _, cli := range s.OnlineUsers {
+		users = append(users, cli)
+	}
 
-		s.mapLock.RUnlock()
-		for _, cli := range users {
-			onlineMsg := "[" + cli.Addr + "]" + cli.Name + ":" + "在线\n"
-			usr.SendMsg(onlineMsg)
-		}
+	s.mapLock.RUnlock()
+	for _, cli := range users {
+		onlineMsg := "[" + cli.Addr + "]" + cli.Name + ":" + "在线\n"
+		usr.SendMsg(onlineMsg)
+	}
 }
-func (s *Server) handlerRename(usr *user.User, msg string){
-		parts := strings.Split(msg, "|")
-		if len(parts) == 2 {
-			s.Rename(usr, parts[1])
-		} else {
-			usr.SendMsg(("格式错误:rename|name\n"))
-		}
+func (s *Server) handlerRename(usr *user.User, args []string) {
+	if len(args) != 1 {
+		usr.SendMsg("[系统] 用法: rename|新名字\n")
+		return
+	}
+
+	s.Rename(usr, args[0])
 }
-func (s *Server) handlerPrivateChat(usr *user.User, msg string){
-		parts := strings.Split(msg, "|")
-		if len(parts) == 3 {
-			s.PrivateChat(usr, parts[1], parts[2])
-		} else {
-			usr.SendMsg(("格式错误:to|name|msg\n"))
-		}
+func (s *Server) handlerPrivateChat(usr *user.User, args []string) {
+	if len(args) != 2 {
+		usr.SendMsg("[系统] 用法: to|用户名|消息\n")
+		return
+	}
+
+	s.PrivateChat(usr, args[0], args[1])
 }
-func (s *Server) handlerCreate(usr *user.User, msg string){
-		parts := strings.Split(msg, "|")
-		if len(parts) == 2 && parts[1] != "" { //防止空房间名
-			s.CreateRoom(usr, parts[1])
-		} else {
-			usr.C <- "格式错误:create|room\n"
-		}
+
+func (s *Server) handlerCreate(usr *user.User, args []string) {
+	if len(args) != 1 {
+		usr.SendMsg("[系统] 用法: create|房间名\n")
+		return
+	}
+
+	s.CreateRoom(usr, args[0])
 }
-func (s *Server) handlerJoin(usr *user.User, msg string){
-		parts := strings.Split(msg, "|")
-		if len(parts) == 2 && parts[1] != "" { //防止空房间名
-			s.JoinRoom(usr, parts[1])
-		} else {
-			usr.C <- "格式错误:join|room\n"
-		}
+func (s *Server) handlerJoin(usr *user.User, args []string) {
+	if len(args) != 1 {
+		usr.SendMsg("[系统] 用法: join|房间名\n")
+		return
+	}
+
+	s.JoinRoom(usr, args[0])
 }
-func (s *Server) handlerRoomchat(usr *user.User, msg string){
-		parts := strings.Split(msg, "|")
-		if len(parts) == 2 && parts[1] != "" { //防止空房间名
-			s.RoomChat(usr, parts[1])
-		} else {
-			usr.C <- "格式错误:room|room\n"
-		}
+func (s *Server) handlerRoomchat(usr *user.User, args []string) {
+	if len(args) != 1 {
+		usr.SendMsg("[系统] 用法: room|消息内容\n")
+		return
+	}
+
+	s.RoomChat(usr, args[0])
 }

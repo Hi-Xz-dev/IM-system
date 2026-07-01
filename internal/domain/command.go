@@ -1,0 +1,25 @@
+package domain
+
+type CommandType string
+
+const (
+	CmdUnknown CommandType = "unknown"
+	CmdWho     CommandType = "who"
+	CmdRename  CommandType = "rename"
+	CmdPrivate CommandType = "private"
+	CmdRooms   CommandType = "rooms"
+	CmdCreate  CommandType = "create"
+	CmdJoin    CommandType = "join"
+	CmdLeave   CommandType = "leave"
+	CmdRoom    CommandType = "room"
+	CmdWhere   CommandType = "where"
+	CmdMembers CommandType = "members"
+	CmdHelp    CommandType = "help"
+	CmdPublic  CommandType = "public"
+)
+
+type Command struct {
+	Type CommandType
+	Args []string
+	Raw  string
+}

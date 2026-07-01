@@ -26,17 +26,18 @@ func (s *Server) Offline(user *user.User) {
 	s.BroadCast(user, "已下线")
 }
 
-//当前位置
-func (s *Server) Where(u *user.User){
+// 当前位置
+func (s *Server) Where(u *user.User) {
 	s.mapLock.RLock()
 	roomName := u.CurrentRoom
 	s.mapLock.RUnlock()
-	if roomName == ""{
+	if roomName == "" {
 		u.C <- "当前未加入房间\n"
 		return
 	}
 	u.C <- "当前房间：" + roomName + "\n"
 }
+
 // 私聊功能
 func (s *Server) PrivateChat(sender *user.User, targetName string, content string) {
 	s.mapLock.RLock()
@@ -83,8 +84,9 @@ func (s *Server) Rename(usr *user.User, newName string) {
 	msg := "[系统] " + oldName + " 改名为 " + newName + "\n"
 	s.RoomBroadcast(users, msg)
 }
-//Help
-func (s *Server) Help(user *user.User){
+
+// Help
+func (s *Server) Help(user *user.User) {
 	user.C <- "======= 命令列表 =======\n"
 	user.C <- "who                 查看在线用户\n"
 	user.C <- "rename|名字         修改昵称\n"
@@ -96,4 +98,16 @@ func (s *Server) Help(user *user.User){
 	user.C <- "room|消息           房间聊天\n"
 	user.C <- "quit                退出系统\n"
 	user.C <- "========================\n"
-}	
+}
+
+// 查找全部在线用户
+func (s *Server) GetOnlineUsers() []string {
+	s.mapLock.RLock()
+	defer s.mapLock.RUnlock()
+	users := make([]string, 0, len(s.OnlineUsers))
+	for _, cli := range s.OnlineUsers {
+		users = append(users, cli.Name)
+	}
+
+	return users
+}

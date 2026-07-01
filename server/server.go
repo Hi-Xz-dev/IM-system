@@ -23,6 +23,10 @@ type Server struct {
 	Rooms map[string]*room.Room
 	//断开用户链接
 	Disconnect chan *user.User
+	//退出
+	listener net.Listener
+	//
+	IsShutdown bool
 }
 
 // 创建一个server接口
@@ -98,6 +102,24 @@ func (s *Server) RoomBroadcast(users []*user.User, msg string) {
 	}
 }
 
+func (s *Server) Shutdown() {
+	s.IsShutdown = true
+	if s.listener != nil {
+		_ = s.listener.Close()
+	}
+	s.mapLock.RLock()
+	users := make([]*user.User, 0, len(s.OnlineUsers))
+	for _, u := range s.OnlineUsers {
+		users = append(users, u)
+	}
+	s.mapLock.RUnlock()
+	for _, u := range users {
+		u.SendMsg("[系统] 服务器正在关闭")
+		s.Offline(u)
+	}
+
+}
+
 // handler
 func (s *Server) Handler(conn net.Conn) {
 	//..当前链接的业务
@@ -111,9 +133,9 @@ func (s *Server) Handler(conn net.Conn) {
 	go func() {
 		defer close(done)
 		scanner := bufio.NewScanner(conn)
-		for scanner.Scan() {//返回bool
+		for scanner.Scan() { //返回bool
 			usr.UpdateActiveTime()
-			msg := strings.TrimSpace(scanner.Text())//取出读到的内容
+			msg := strings.TrimSpace(scanner.Text()) //取出读到的内容
 			if msg == "" {
 				continue
 			}
@@ -126,7 +148,7 @@ func (s *Server) Handler(conn net.Conn) {
 			//用户针对msg进行消息处理
 			s.DoMessage(usr, msg)
 		}
-		if err := scanner.Err(); err != nil {//错误可能有两种 一种正常，另外是真错了
+		if err := scanner.Err(); err != nil { //错误可能有两种 一种正常，另外是真错了
 			fmt.Println("Conn Read err:", err)
 		}
 		s.Offline(usr)
@@ -137,13 +159,14 @@ func (s *Server) Handler(conn net.Conn) {
 // 启动服务器接口
 func (s *Server) Start() {
 	//socket listen
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.IP, s.Port))
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.IP, s.Port))
 	if err != nil {
 		fmt.Println("net.Listen err:", err)
 		return
 	}
+	s.listener = listener
 	//close listen socket
-	defer listen.Close()
+	defer listener.Close()
 	//启动超时踢人功能
 	go s.CleanOnlineUser()
 	go s.ListenDisconnect()
@@ -151,8 +174,12 @@ func (s *Server) Start() {
 	go s.ListenMessager()
 	for {
 		//accept等待 TCP三次握手
-		conn, err := listen.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
+			if s.IsShutdown {
+				fmt.Println("server shutdown, stop accepting connections")
+				return
+			}
 			fmt.Println("listener accept err:", err)
 			continue
 		}

@@ -2,9 +2,14 @@ package main
 
 import (
 	"IM-system/server"
-	"github.com/gin-gonic/gin"
+	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -12,6 +17,7 @@ func main() {
 
 	// TCP服务
 	go s.Start()
+
 	// gin服务
 	r := gin.Default()
 
@@ -100,5 +106,11 @@ func main() {
 	})
 	//静态资源
 	r.Static("/web", "./web") //浏览器访问：/web/xxxx去项目中的：./web/xxxx找文件
-	r.Run(":8081")
+	go r.Run(":8081")
+	quit := make(chan os.Signal, 1) //存信号
+	//告诉 Go runtime：如果收到 SIGINT/SIGTERM，就把这个信号写入 quit channel。
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	fmt.Println("server shutting down")
+	s.Shutdown()
 }

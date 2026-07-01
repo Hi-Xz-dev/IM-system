@@ -32,10 +32,10 @@ func (s *Server) Where(u *user.User) {
 	roomName := u.CurrentRoom
 	s.mapLock.RUnlock()
 	if roomName == "" {
-		u.C <- "当前未加入房间\n"
+		u.SendMsg("当前未加入房间")
 		return
 	}
-	u.C <- "当前房间：" + roomName + "\n"
+	u.SendMsg("当前房间：" + roomName)
 }
 
 // 私聊功能
@@ -44,12 +44,12 @@ func (s *Server) PrivateChat(sender *user.User, targetName string, content strin
 	targetUser, ok := s.OnlineUsers[targetName]
 	s.mapLock.RUnlock()
 	if !ok {
-		sender.C <- "用户不存在，请重试\n"
+		sender.SendMsg("用户不存在，请重试")
 		return
 	}
 	privateMsg := "[私聊][" + sender.Name + " -> " + targetName + "] " + content
-	targetUser.C <- privateMsg
-	sender.C <- "[系统] 私聊发送成功 -> " + targetName
+	targetUser.SendMsg(privateMsg)
+	sender.SendMsg("[系统] 私聊发送成功 -> " + targetName)
 
 }
 
@@ -58,7 +58,7 @@ func (s *Server) Rename(usr *user.User, newName string) {
 	s.mapLock.Lock()
 	if _, ok := s.OnlineUsers[newName]; ok {
 		s.mapLock.Unlock()
-		usr.SendMsg("用户名已存在，请重试\n")
+		usr.SendMsg("用户名已存在，请重试")
 		return
 	}
 	oldName := usr.Name
@@ -87,17 +87,17 @@ func (s *Server) Rename(usr *user.User, newName string) {
 
 // Help
 func (s *Server) Help(user *user.User) {
-	user.C <- "======= 命令列表 =======\n"
-	user.C <- "who                 查看在线用户\n"
-	user.C <- "rename|名字         修改昵称\n"
-	user.C <- "to|用户|消息        私聊\n"
-	user.C <- "rooms               查看房间\n"
-	user.C <- "create|房间         创建房间\n"
-	user.C <- "join|房间           加入房间\n"
-	user.C <- "leave               离开房间\n"
-	user.C <- "room|消息           房间聊天\n"
-	user.C <- "quit                退出系统\n"
-	user.C <- "========================\n"
+	user.SendMsg(`======= 命令列表 =======
+who                 查看在线用户
+rename|名字         修改昵称
+to|用户|消息        私聊
+rooms               查看房间
+create|房间         创建房间
+join|房间           加入房间
+leave               离开房间
+room|消息           房间聊天
+quit                退出系统
+========================`)
 }
 
 // 查找全部在线用户

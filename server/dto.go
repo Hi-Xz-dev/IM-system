@@ -1,6 +1,6 @@
 package server
 
-type RoomInfo struct{
-	Name string
+type RoomInfo struct {
+	Name  string
 	Count int
 }

@@ -1,6 +1,7 @@
 package user
 
 import (
+	"fmt"
 	"net"
 	"time"
 )
@@ -39,26 +40,31 @@ func (u *User) UpdateActiveTime() {
 
 // 给当前user对应的客户端发送消息
 func (u *User) SendMsg(msg string) {
-	u.conn.Write([]byte(msg))
+	select {
+	case u.C <- msg:
+	default:
+		fmt.Println("[WARN] user channel full, drop message:", u.Name)
+	}
 }
 
 // 持续监听 User.C，并将消息发送给客户端。
 // 若写超时或写失败，则通知 Server 统一处理连接断开。
-func (u *User) ListenMessage(disconnect chan *User) {
+// 这个函数只能往 channel 里发送，不能接收。
+func (u *User) ListenMessage(disconnect chan<- *User) {
 	for msg := range u.C {
 		deadline := time.Now().Add(5 * time.Second)
 		if err := u.conn.SetWriteDeadline(deadline); err != nil {
-			select{
-				case disconnect <- u:
-				default:
-				}
+			select {
+			case disconnect <- u:
+			default:
+			}
 			return
 		}
 		if _, err := u.conn.Write([]byte(msg + "\n")); err != nil {
-			select{
-				case disconnect <- u:
-				default:
-				}
+			select {
+			case disconnect <- u:
+			default:
+			}
 			return
 		}
 	}

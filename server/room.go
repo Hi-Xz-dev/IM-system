@@ -12,13 +12,13 @@ func (s *Server) Members(u *user.User) {
 	roomName := u.CurrentRoom
 	if roomName == "" {
 		s.mapLock.RUnlock()
-		u.C <- "当前未加入房间\n"
+		u.SendMsg("当前未加入房间")
 		return
 	}
 	r, ok := s.Rooms[roomName]
 	if !ok {
 		s.mapLock.RUnlock()
-		u.C <- "房间不存在\n"
+		u.SendMsg("房间不存在")
 		return
 	}
 	members := make([]string, 0, len(r.Users))
@@ -26,9 +26,9 @@ func (s *Server) Members(u *user.User) {
 		members = append(members, name)
 	}
 	s.mapLock.RUnlock()
-	u.C <- "当前房间成员：\n"
+	u.SendMsg("当前房间成员：")
 	for _, name := range members {
-		u.C <- name + "\n"
+		u.SendMsg(name)
 	}
 }
 
@@ -44,7 +44,7 @@ func (s *Server) ShowRooms(user *user.User) {
 	s.mapLock.RUnlock()
 	// 锁外 IO
 	for _, msg := range msgs {
-		user.C <- msg
+		user.SendMsg(msg)
 	}
 }
 
@@ -54,7 +54,7 @@ func (s *Server) JoinRoom(joinuser *user.User, roomName string) {
 	r, ok := s.Rooms[roomName]
 	if !ok {
 		s.mapLock.Unlock() //提前返回
-		joinuser.C <- "房间名不存在，请重试\n"
+		joinuser.SendMsg("房间名不存在，请重试")
 		return //有返回 要么用defer 或者提前解锁
 	}
 	// snapshot
@@ -79,7 +79,7 @@ func (s *Server) JoinRoom(joinuser *user.User, roomName string) {
 	//广播消息
 	msg := "[系统][" + joinuser.Name + "]" + "加入房间：" + roomName + "\n"
 	s.RoomBroadcast(users, msg)
-	joinuser.C <- "成功加入房间：" + roomName + "\n"
+	joinuser.SendMsg("成功加入房间：" + roomName)
 }
 
 // 退出房间（外层）
@@ -89,7 +89,7 @@ func (s *Server) LeaveRoom(leaveuser *user.User) {
 	r, ok := s.Rooms[roomName]
 	if !ok {
 		s.mapLock.Unlock()
-		leaveuser.C <- "当前未加入房间\n"
+		leaveuser.SendMsg("当前未加入房间")
 		return
 	}
 	//make([]T, len, cap)
@@ -102,7 +102,7 @@ func (s *Server) LeaveRoom(leaveuser *user.User) {
 	s.mapLock.Unlock()
 	msg := "[系统][" + leaveuser.Name + "]" + "离开房间：" + roomName + "\n"
 	s.RoomBroadcast(users, msg)
-	leaveuser.C <- "退出房间成功\n"
+	leaveuser.SendMsg("退出房间成功")
 }
 
 // 退出房间（内层）
@@ -122,7 +122,7 @@ func (s *Server) CreateRoom(createuser *user.User, roomName string) {
 	_, ok := s.Rooms[roomName] //检查重名
 	if ok {
 		s.mapLock.Unlock()
-		createuser.C <- "房间名存在，请重试\n"
+		createuser.SendMsg("房间名存在，请重试")
 		return
 	}
 	//已进入房间 先退出
@@ -145,7 +145,7 @@ func (s *Server) RoomChat(sender *user.User, content string) {
 
 	if sender.CurrentRoom == "" {
 		s.mapLock.Unlock()
-		sender.C <- "当前未加入房间\n"
+		sender.SendMsg("当前未加入房间")
 		return
 	}
 	r := s.Rooms[sender.CurrentRoom]

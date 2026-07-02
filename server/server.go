@@ -125,13 +125,13 @@ func (s *Server) Handler(conn net.Conn) {
 	//..当前链接的业务
 	usr := user.NewUser(conn)
 	go usr.ListenMessage(s.Disconnect)
-	//通知 Handler：读协程结束了，你也可以退出了
+	//通知 Handler：读协程结束了，你也可以退出了 只做通知 内容无所谓 省内存
 	done := make(chan struct{})
 	//用户上线业务
 	s.Online(usr)
 	//启动读协程 负责读客户端发来的消息
 	go func() {
-		defer close(done)
+		defer close(done)//通知 Handler：读协程已退出
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() { //返回bool
 			usr.UpdateActiveTime()
@@ -142,7 +142,6 @@ func (s *Server) Handler(conn net.Conn) {
 
 			if msg == "quit" {
 				s.Offline(usr)
-				_ = conn.Close()
 				return
 			}
 			//用户针对msg进行消息处理
@@ -151,9 +150,10 @@ func (s *Server) Handler(conn net.Conn) {
 		if err := scanner.Err(); err != nil { //错误可能有两种 一种正常，另外是真错了
 			fmt.Println("Conn Read err:", err)
 		}
-		s.Offline(usr)
-		_ = conn.Close()
+		s.Offline(usr)//业务
+
 	}()
+	<-done//等这个 Channel 被关闭。
 }
 
 // 启动服务器接口

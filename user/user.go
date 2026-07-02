@@ -34,7 +34,9 @@ func NewUser(conn net.Conn) *User {
 }
 
 func (u *User) Close() {
-	u.conn.Close()
+	if u.conn != nil {
+		_ = u.conn.Close()
+	}
 }
 
 // 更新活跃时间
@@ -50,21 +52,21 @@ func (u *User) SendMsg(msg string) {
 		fmt.Println("[WARN] user channel full, drop message:", u.Name)
 	}
 }
-
+//监听某一个用户的信息
 // 持续监听 User.C，并将消息发送给客户端。
 // 若写超时或写失败，则通知 Server 统一处理连接断开。
 // 这个函数只能往 channel 里发送，不能接收。
 func (u *User) ListenMessage(disconnect chan<- *User) {
 	for msg := range u.C {
 		deadline := time.Now().Add(5 * time.Second)
-		if err := u.conn.SetWriteDeadline(deadline); err != nil {
+		if err := u.conn.SetWriteDeadline(deadline); err != nil {//本身失败直接返回 说明底层存在问题 等待下面TCP写入 最多5秒
 			select {
 			case disconnect <- u:
 			default:
 			}
 			return
 		}
-		if _, err := u.conn.Write([]byte(msg + "\n")); err != nil {
+		if _, err := u.conn.Write([]byte(msg + "\n")); err != nil {//TCP写入数据
 			select {
 			case disconnect <- u:
 			default:

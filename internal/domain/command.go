@@ -3,7 +3,7 @@ package domain
 type CommandType string
 
 const (
-	CmdUnknown CommandType = "unknown"
+	CmdUnknown CommandType = "unknonw"
 	CmdWho     CommandType = "who"
 	CmdRename  CommandType = "rename"
 	CmdPrivate CommandType = "private"

@@ -128,3 +128,10 @@ func TestParse(t *testing.T) {
 		})
 	}
 }
+//性能测试
+func BenchmarkParse(b *testing.B) {
+	input := "to|TOm|hello"
+	for i := 0; i< b.N;i++{
+		_ = Parse(input)//防止编译器优化（Compiler Optimization）
+	}
+}

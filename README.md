@@ -4,186 +4,243 @@
 
 ---
 
+# Features
+
+- TCP-based Instant Messaging
+- Public Chat
+- Private Chat
+- Room Chat
+- HTTP REST API (Gin)
+- Graceful Shutdown
+- Sticky Packet / Half Packet Handling
+- Protocol Parser
+- Unified TCP Write Path
+- Unit Tests
+- Race Detector
+
+---
+
 # Project Overview
 
-Go IM System 是一个基于 Go 开发的即时通信系统。
+Go IM System is an Instant Messaging System built with Go.
 
-项目最终目标不是实现一个简单的聊天室，而是逐步演进为一个具备工程化能力、可扩展、支持多实例部署的 Distributed IM System。
+The goal of this project is **not** to build a simple chat room, but to gradually evolve into a production-oriented **Distributed IM System**.
 
-整个项目将按照真实后端系统的开发流程持续迭代，而不是一次性完成所有功能。
+Instead of focusing only on features, this project follows an incremental engineering roadmap, continuously improving architecture, maintainability, and scalability.
 
 ---
 
 # Design Philosophy
 
-本项目遵循以下原则：
+This project follows several engineering principles:
 
-- 先保证正确，再考虑性能
-- 先保证稳定，再增加功能
-- 每次只解决一个问题
-- 每个模块只负责一件事情
-- 所有重构必须保持系统可运行
-- 所有新增功能必须建立在稳定架构之上
+- Correctness before performance
+- Stability before features
+- Solve one problem at a time
+- One module, one responsibility
+- Every refactoring keeps the system runnable
+- Every new feature is built on a stable architecture
 
 ---
 
 # Development Roadmap
 
-## Phase 1：Standalone IM
+## Phase 1 — Standalone IM
 
-目标：
+Goal:
 
-构建一个稳定、正确、可测试的单机 IM Server。
+Build a stable, correct and testable standalone IM server.
 
-重点完成：
-
-- Handler 生命周期管理
-- TCP 粘包 / 半包处理
-- SendMsg 重构
-- 所有 TCP 写统一出口
-- 优雅退出（Graceful Shutdown）
-- race detector
-- Unit Test
-- Benchmark
-
-完成本阶段后：
-
-项目可以作为 Go 后端实习项目。
+- [x] Handler lifecycle management (no goroutine leaks)
+- [x] TCP sticky packet / half packet handling (`bufio.Scanner`)
+- [x] Unified TCP write path (`User.C -> ListenMessage`)
+- [x] SendMsg refactoring (non-blocking `select + default`)
+- [x] Protocol.Parse abstraction (`internal/protocol`)
+- [x] Command abstraction (`internal/domain`)
+- [x] Offline idempotency (`IsClosed`)
+- [x] Graceful Shutdown (`SIGINT/SIGTERM`)
+- [x] Go Race Detector (`go test -race`)
+- [x] Unit Tests
+- [x] Benchmark
 
 ---
 
-## Phase 2：Engineering
+## Phase 2 — Engineering
 
-目标：
+Goal:
 
-让项目具备真实后端项目结构。
+Transform the project into a production-style Go backend.
 
-包括：
+Including:
 
-- Gin API 分层
+- Gin API layering
 - DTO
 - Middleware
 - Config
 - Logger
-- JWT
+- JWT Authentication
 - bcrypt
 - MySQL
-- Repository
+- Repository Pattern
 
-数据库主要用于：
+Database will mainly be used for:
 
-- 用户登录
-- 历史消息
-- 离线消息
+- User authentication
+- Message history
+- Offline messages
 
 ---
 
-## Phase 3：Performance
+## Phase 3 — Performance
 
-目标：
+Goal:
 
-用数据证明系统性能。
+Measure and optimize system performance with real data.
 
-包括：
+Including:
 
 - pprof
 - Benchmark
-- 压测
-- 最大连接数
+- Stress Testing
+- Maximum Connections
 - Messages / Second
-- CPU Analysis
-- Memory Analysis
+- CPU Profiling
+- Memory Profiling
 - Performance Optimization
 
 ---
 
-## Phase 4：Distributed IM
+## Phase 4 — Distributed IM
 
-目标：
+Goal:
 
-演进为分布式即时通信系统。
+Evolve into a distributed instant messaging system.
 
-包括：
+Including:
 
 - Redis
 - Online User Routing
-- Multi Gateway
+- Multi-Gateway
 - Cross-node Private Chat
 - Cross-node Room Chat
-- Offline Message
+- Offline Messages
 - Message Synchronization
 - Docker Compose
-- Kubernetes（Optional）
+- Kubernetes (Optional)
 
-完成本阶段后：
+After this phase, the project officially becomes:
 
-项目正式升级为：
+**Distributed IM System**
 
-Distributed IM System
+---
+
+# Engineering Highlights
+
+- **Protocol Parser Abstraction** — `Parse(raw) -> Command{Type, Args, Raw}` replaces string-based command matching.
+- **Unified TCP Write Path** — All outgoing messages go through `User.C -> ListenMessage -> conn.Write`.
+- **Graceful Shutdown** — `SIGINT/SIGTERM -> Stop Accept -> Offline Users -> Release Resources`.
+- **Handler Lifecycle Management** — `done` channel guarantees Handler exits only after the reader goroutine exits.
+- **Sticky Packet Handling** — `bufio.Scanner` reads messages line by line, eliminating TCP sticky/half packet issues.
+- **Offline Idempotency** — `IsClosed` prevents duplicate offline operations.
+- **Backpressure Protection** — Buffered channels with `select/default` prevent slow consumers from blocking the server.
+- **Unit Testing** — Table-driven tests cover protocol parsing and core server logic.
+- **Concurrency Safety** — Shared state is protected by `sync.RWMutex` and verified using Go Race Detector.
+
+---
+
+# Testing
+
+```bash
+# Run all tests
+go test ./...
+
+# Run all tests with race detector
+go test -race ./...
+
+# Run protocol tests
+go test -v ./internal/protocol
+```
+
+## Test Coverage
+
+| Package | Test | Description |
+|----------|------|-------------|
+| `internal/protocol` | `TestParse` | Protocol parsing (12 commands + empty input) |
+| `server` | `TestOnlineOffline` | User online/offline lifecycle |
+| `server` | `TestOfflineDoubleCall` | Offline idempotency |
+| `server` | `TestRoomJoinLeave` | Room lifecycle |
+| `server` | `TestRenameSync` | Rename synchronization |
 
 ---
 
 # Why Refactor?
 
-项目第一版已经实现：
+The first version of the project already supported:
 
-- 用户上线/下线
-- 公聊
-- 私聊
-- 房间聊天
+- User online/offline
+- Public chat
+- Private chat
+- Room chat
 - HTTP API
 
-随着功能增加，Server 同时负责：
+As more features were added, the Server gradually became responsible for:
 
-- TCP 连接管理
-- 用户管理
-- 房间管理
-- 消息广播
-- 命令解析
+- TCP connection management
+- User management
+- Room management
+- Message broadcasting
+- Protocol parsing
 - HTTP API
 
-导致：
+This resulted in:
 
-- 模块职责越来越多
-- 耦合越来越严重
-- 可维护性下降
-- 后续开发成本越来越高
+- Increasing responsibilities
+- High coupling
+- Reduced maintainability
+- Higher development cost
 
-因此决定停止增加新功能，开始重构整个项目。
+Therefore, feature development was intentionally paused in favor of architectural refactoring.
 
-重构目标不是修改功能，而是建立能够持续演进的架构。
+The goal of refactoring is **not** to add more features, but to improve maintainability, testability, and long-term scalability.
 
 ---
 
 # Refactoring Principles
 
-重构期间遵循以下原则：
+During refactoring:
 
-- 不新增聊天功能
-- 不修改通信协议
-- 每次只解决一个问题
-- 每次重构后保证项目可运行
-- 保持提交粒度尽可能小
-- 每完成一个阶段再进入下一阶段
+- No new chat features
+- No protocol changes
+- One problem solved at a time
+- Keep the project runnable after every refactoring
+- Keep commits small and focused
+- Move to the next stage only after finishing the current one
 
 ---
 
 # Current Stage
 
-当前项目处于：
+Current status:
 
-Phase 1：Standalone IM
+**Phase 1 (Completed) → Phase 2 (In Progress)**
 
-当前工作重点：
+Phase 1 has achieved its primary goal:
 
-- [ ] Handler 生命周期
-- [ ] TCP 粘包 / 半包
-- [ ] SendMsg 重构
-- [ ] TCP 写统一出口
-- [ ] Graceful Shutdown
-- [ ] race detector
-- [ ] Unit Test
-- [ ] Benchmark
+- Stable architecture
+- Correct behavior
+- Engineering-oriented refactoring
+- Unit testing
+
+Current focus:
+
+- [ ] Gin API Layer
+- [ ] DTO
+- [ ] Middleware
+- [ ] Config
+- [ ] Logger
+- [ ] JWT Authentication
+- [ ] MySQL
+- [ ] Repository
 
 ---
 
@@ -194,15 +251,13 @@ Phase 1：Standalone IM
                    │
             TCP / WebSocket
                    │
-              Connection
-                   │
               Gateway Layer
                    │
-              Protocol Layer
+             Protocol Layer
                    │
-               Logic Layer
+           Application Layer
                    │
-              Message Hub
+             Message Hub
                    │
         ┌──────────┴──────────┐
         │                     │
@@ -210,7 +265,7 @@ Phase 1：Standalone IM
       MySQL               Redis
 ```
 
-当前阶段仅实现：
+Current implementation:
 
 ```
 Client
@@ -220,7 +275,7 @@ TCP Connection
 Standalone IM Server
 ```
 
-后续逐步演进为完整的分布式架构。
+Future versions will gradually evolve into a distributed architecture.
 
 ---
 

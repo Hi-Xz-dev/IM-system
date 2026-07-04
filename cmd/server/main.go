@@ -1,20 +1,27 @@
 package main
 
 import (
+	"IM-system/internal/config"
+	"IM-system/internal/logger"
 	"IM-system/server"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	s := server.NewServer("127.0.0.1", 8080)
-
+	logger.Init()
+	cfg := config.Load()
+	s := server.NewServer(cfg.TCP.Host, cfg.TCP.Port)
+	logger.Log.Info(
+		"tcp server starting",
+		"host", cfg.TCP.Host,
+		"port", cfg.TCP.Port,
+	)
 	// TCP服务
 	go s.Start()
 
@@ -106,11 +113,16 @@ func main() {
 	})
 	//静态资源
 	r.Static("/web", "./web") //浏览器访问：/web/xxxx去项目中的：./web/xxxx找文件
-	go r.Run(":8081")
+	HttpAddr := fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port)
+	logger.Log.Info(
+		"http server starting",
+		"addr", HttpAddr,
+	)
+	go r.Run(HttpAddr)
 	quit := make(chan os.Signal, 1) //存信号
 	//告诉 Go runtime：如果收到 SIGINT/SIGTERM，就把这个信号写入 quit channel。
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	fmt.Println("server shutting down")
+	logger.Log.Info("server shutting down")
 	s.Shutdown()
 }

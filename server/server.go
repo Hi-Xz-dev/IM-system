@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"IM-system/internal/logger"
 )
 
 type Server struct {
@@ -131,7 +132,7 @@ func (s *Server) Handler(conn net.Conn) {
 	s.Online(usr)
 	//启动读协程 负责读客户端发来的消息
 	go func() {
-		defer close(done)//通知 Handler：读协程已退出
+		defer close(done) //通知 Handler：读协程已退出
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() { //返回bool
 			usr.UpdateActiveTime()
@@ -150,10 +151,10 @@ func (s *Server) Handler(conn net.Conn) {
 		if err := scanner.Err(); err != nil { //错误可能有两种 一种正常，另外是真错了
 			fmt.Println("Conn Read err:", err)
 		}
-		s.Offline(usr)//业务
+		s.Offline(usr) //业务
 
 	}()
-	<-done//等这个 Channel 被关闭。
+	<-done //等这个 Channel 被关闭。
 }
 
 // 启动服务器接口
@@ -180,7 +181,7 @@ func (s *Server) Start() {
 				fmt.Println("server shutdown, stop accepting connections")
 				return
 			}
-			fmt.Println("listener accept err:", err)
+			logger.Log.Error("accept failed","error", err)
 			continue
 		}
 		//do handler

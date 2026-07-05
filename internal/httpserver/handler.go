@@ -18,88 +18,62 @@ func NewHandler(s *server.Server) *Handler {
 }
 
 func (h *Handler)Ping(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"msg": "pong",
-	})
+	c.JSON(http.StatusOK, OK("pong"))
 }
 
 func (h *Handler)OnlineUsers(c *gin.Context) {
 	users := h.server.GetOnlineUsers()
-	c.JSON(http.StatusOK, gin.H{
-		"OnlineUsers": users,
-	})
+	c.JSON(http.StatusOK, OK(users))
 }
 
 func (h *Handler)Rooms(c *gin.Context) {
 	rooms := h.server.GetRooms()
-	c.JSON(http.StatusOK, gin.H{
-		"Rooms": rooms,
-	})
+	c.JSON(http.StatusOK,OK(rooms))
 }
 
 func (h *Handler)Members(c *gin.Context) {
 	room := strings.TrimSpace(c.Param("room")) //直接拿干净数据
 	if room == "" {                            //清理空格 防止脏数据
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid room parameter",
-		})
+		c.JSON(http.StatusBadRequest, Fail("invalid room parameter"))
 		return
 	}
 	members, ok := h.server.GetMembers(room)
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "room not found",
-		})
+		c.JSON(http.StatusNotFound,Fail("room not found"))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"members": members,
-	})
+	c.JSON(http.StatusOK, OK(members))
 }
 func (h *Handler)Join(c *gin.Context) {
 	room := strings.TrimSpace(c.Param("room"))
 
 	if room == "" { //清理空格 防止脏数据
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid room parameter",
-		})
+		c.JSON(http.StatusBadRequest, Fail("invalid room parameter"))
 		return
 	}
 	user := strings.TrimSpace(c.Query("user"))
 	if user == "" { //清理空格 防止脏数据
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid user parameter",
-		})
+		c.JSON(http.StatusBadRequest, Fail("invalid user parameter"))
 		return
 	}
 	msg, ok := h.server.JoinRoom1(user, room)
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": msg,
-		})
+		c.JSON(http.StatusNotFound, Fail(msg))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"msg": msg,
-	})
+	c.JSON(http.StatusOK, OK(msg))
 }
 
 func (h *Handler)Leave(c *gin.Context) {
 	user := strings.TrimSpace(c.Query("user"))
 	if user == "" { //清理空格 防止脏数据
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid user parameter",
-		})
+		c.JSON(http.StatusBadRequest, Fail("invalid user parameter"))
 		return
 	}
 	msg, ok := h.server.LeaveRoom1(user)
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": msg,
-		})
+		c.JSON(http.StatusNotFound, Fail(msg))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"msg": msg,
-	})
+	c.JSON(http.StatusOK, OK(msg))
 }

@@ -6,12 +6,12 @@ type Response struct {
 	Data any `json:"data,omitempty"`//返回数据
 }
 const(
-	CodeOK = 0
-	CodeFail = -1
+	codeOK = 0
+	codeFail = -1
 )
 func OK(data any) Response{
 	return Response{
-		Code: CodeOK,
+		Code: codeOK,
 		Msg: "ok",
 		Data: data,
 	}
@@ -19,7 +19,7 @@ func OK(data any) Response{
 
 func Fail(msg string) Response{
 	return Response{
-		Code: CodeFail,
+		Code: codeFail,
 		Msg: msg,
 	}
 }

@@ -7,8 +7,8 @@ import(
 )
 func RegisterRoutes(r *gin.Engine, s *server.Server){
 	h := NewHandler(s)
-	r.Use(RequestLogger())
-	r.GET("/ping", h.Ping)
+	//r.Use(RequestLogger())//配置整个 Gin Engine
+	r.GET("/ping", h.Ping)//注册路由
 	r.GET("/online-users", h.OnlineUsers)
 	r.GET("/rooms", h.Rooms)
 	r.GET("/rooms/:room/members", h.Members)

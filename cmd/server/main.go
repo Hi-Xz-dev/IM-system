@@ -25,8 +25,12 @@ func main() {
 	go s.Start()
 
 	// gin服务
-	r := gin.Default()
-
+	//r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(httpserver.Recovery())
+	r.Use(httpserver.RequestLogger())
+	
 	httpserver.RegisterRoutes(r, s)//依赖传递
 	//静态资源
 	r.Static("/web", "./web") //浏览器访问：/web/xxxx去项目中的：./web/xxxx找文件

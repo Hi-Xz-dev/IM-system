@@ -57,7 +57,7 @@ func (s *Server) JoinRoom(joinuser *user.User, roomName string) {
 		joinuser.SendMsg("房间名不存在，请重试")
 		return //有返回 要么用defer 或者提前解锁
 	}
-	if joinuser.CurrentRoom == roomName{
+	if joinuser.CurrentRoom == roomName {
 		s.mapLock.Unlock()
 		joinuser.SendMsg("已加入房间" + roomName)
 		return
@@ -76,13 +76,10 @@ func (s *Server) JoinRoom(joinuser *user.User, roomName string) {
 
 // 加入房间 (内层)
 func (s *Server) joinRoomUnsafe(joinuser *user.User, roomName string) {
-	if joinuser.CurrentRoom != ""{
+	if joinuser.CurrentRoom != "" {
 		s.leaveRoomUnsafe((joinuser))
 	}
 	r := s.Rooms[roomName]
-	if joinuser.CurrentRoom != "" {
-		s.leaveRoomUnsafe(joinuser)
-	}
 	r.Users[joinuser.Name] = joinuser
 	joinuser.CurrentRoom = roomName
 
@@ -100,7 +97,7 @@ func (s *Server) LeaveRoom(leaveuser *user.User) {
 	r, ok := s.Rooms[roomName]
 	if !ok {
 		s.mapLock.Unlock()
-		leaveuser.SendMsg("当前未加入房间") //防御式编程（Defensive Programming）
+		leaveuser.SendMsg("当前房间不存在") //防御式编程（Defensive Programming）
 		return
 	}
 	//make([]T, len, cap)
@@ -121,11 +118,11 @@ func (s *Server) LeaveRoom(leaveuser *user.User) {
 // 退出房间（内层）
 func (s *Server) leaveRoomUnsafe(leaveuser *user.User) {
 	roomName := leaveuser.CurrentRoom
-	if roomName == ""{
+	if roomName == "" {
 		return
 	}
-	r , ok:= s.Rooms[roomName]
-	if  !ok {
+	r, ok := s.Rooms[roomName]
+	if !ok {
 		leaveuser.CurrentRoom = ""
 		return
 	}
@@ -161,20 +158,25 @@ func (s *Server) CreateRoom(createuser *user.User, roomName string) {
 
 // 群聊功能
 func (s *Server) RoomChat(sender *user.User, content string) {
-	s.mapLock.Lock()
+	s.mapLock.RLock()
 
 	if sender.CurrentRoom == "" {
-		s.mapLock.Unlock()
+		s.mapLock.RUnlock()
 		sender.SendMsg("当前未加入房间")
 		return
 	}
-	r := s.Rooms[sender.CurrentRoom]
+	r, ok:= s.Rooms[sender.CurrentRoom]
+	if !ok {
+		s.mapLock.RUnlock()
+		sender.SendMsg("当前房间不存在")
+		return
+	}
 	// snapshot
 	users := make([]*user.User, 0, len(r.Users))
 	for _, u := range r.Users {
 		users = append(users, u)
 	}
-	s.mapLock.Unlock()
+	s.mapLock.RUnlock()
 	msg := "[" + sender.CurrentRoom + "][" + sender.Name + "] " + content
 	s.RoomBroadcast(users, msg)
 }
@@ -218,9 +220,9 @@ func (s *Server) JoinRoomByName(usr, roomName string) (string, bool) {
 	if !ok {
 		return "未找到用户", false
 	}
-	if _, ok := s.Rooms[roomName];!ok{
+	if _, ok := s.Rooms[roomName]; !ok {
 		return "未找到房间", false
-	} 
+	}
 	if u.CurrentRoom == roomName {
 		return "已加入房间", true
 	}

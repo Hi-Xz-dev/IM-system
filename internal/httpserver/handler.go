@@ -32,7 +32,6 @@ func (h *Handler)Rooms(c *gin.Context) {
 }
 
 func (h *Handler)Members(c *gin.Context) {
-	room := strings.TrimSpace(c.Param("room")) //直接拿干净数据
 	room, ok := getRoomParam(c)
 	if !ok{
 		return
@@ -45,7 +44,6 @@ func (h *Handler)Members(c *gin.Context) {
 	c.JSON(http.StatusOK, OK(members))
 }
 func (h *Handler)Join(c *gin.Context) {
-	room := strings.TrimSpace(c.Param("room"))
 	room, ok := getRoomParam(c)
 	if !ok{
 		return

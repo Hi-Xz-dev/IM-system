@@ -57,24 +57,16 @@ func (s *Server) JoinRoom(joinuser *user.User, roomName string) {
 		joinuser.SendMsg("房间名不存在，请重试")
 		return //有返回 要么用defer 或者提前解锁
 	}
-	// snapshot
+	if joinuser.CurrentRoom == roomName{
+		s.mapLock.Unlock()
+		joinuser.SendMsg("已加入房间" + roomName)
+		return
+	}
 	users := make([]*user.User, 0, len(r.Users))
 	for _, u := range r.Users {
 		users = append(users, u)
 	}
-	//房间存在先退出必须在锁内
-	if joinuser.CurrentRoom != "" { //如果是带锁调用 发生死锁：同一个 goroutine 试图重复获取同一把锁（不可重入锁）
-		s.leaveRoomUnsafe(joinuser) //同一把锁被同一个线程重复锁住
-	}
-	//join
-	r.Users[joinuser.Name] = joinuser
-	joinuser.CurrentRoom = roomName
-	//复制要广播的人
-	//1. map 不是线程安全的
-	//2. 解锁以后其他 goroutine 可能修改 map
-	//3. 遍历和修改同时发生会 panic
-	//4. 所以先复制，再解锁
-
+	s.joinRoomUnsafe(joinuser, roomName)
 	s.mapLock.Unlock() //正常返回
 	//广播消息
 	msg := "[系统][" + joinuser.Name + "]" + "加入房间：" + roomName + "\n"
@@ -82,20 +74,41 @@ func (s *Server) JoinRoom(joinuser *user.User, roomName string) {
 	joinuser.SendMsg("成功加入房间：" + roomName)
 }
 
+// 加入房间 (内层)
+func (s *Server) joinRoomUnsafe(joinuser *user.User, roomName string) {
+	if joinuser.CurrentRoom != ""{
+		s.leaveRoomUnsafe((joinuser))
+	}
+	r := s.Rooms[roomName]
+	if joinuser.CurrentRoom != "" {
+		s.leaveRoomUnsafe(joinuser)
+	}
+	r.Users[joinuser.Name] = joinuser
+	joinuser.CurrentRoom = roomName
+
+}
+
 // 退出房间（外层）
 func (s *Server) LeaveRoom(leaveuser *user.User) {
 	s.mapLock.Lock()
 	roomName := leaveuser.CurrentRoom
+	if roomName == "" {
+		s.mapLock.Unlock()
+		leaveuser.SendMsg("当前未加入房间")
+		return
+	}
 	r, ok := s.Rooms[roomName]
 	if !ok {
 		s.mapLock.Unlock()
-		leaveuser.SendMsg("当前未加入房间")
+		leaveuser.SendMsg("当前未加入房间") //防御式编程（Defensive Programming）
 		return
 	}
 	//make([]T, len, cap)
 	users := make([]*user.User, 0, len(r.Users)) // snapshot
 	for _, u := range r.Users {
-		users = append(users, u)
+		if u != leaveuser {
+			users = append(users, u)
+		}
 	}
 	//modify data
 	s.leaveRoomUnsafe(leaveuser)
@@ -108,7 +121,14 @@ func (s *Server) LeaveRoom(leaveuser *user.User) {
 // 退出房间（内层）
 func (s *Server) leaveRoomUnsafe(leaveuser *user.User) {
 	roomName := leaveuser.CurrentRoom
-	r := s.Rooms[roomName]
+	if roomName == ""{
+		return
+	}
+	r , ok:= s.Rooms[roomName]
+	if  !ok {
+		leaveuser.CurrentRoom = ""
+		return
+	}
 	delete(r.Users, leaveuser.Name)
 	leaveuser.CurrentRoom = ""
 	if len(r.Users) == 0 {
@@ -191,45 +211,34 @@ func (s *Server) GetMembers(roomName string) ([]string, bool) {
 }
 
 // 加入房间
-func (s *Server) JoinRoom1(user, roomName string) (string, bool) {
+func (s *Server) JoinRoomByName(usr, roomName string) (string, bool) {
 	s.mapLock.Lock()
 	defer s.mapLock.Unlock()
-	u, ok := s.OnlineUsers[user]
+	u, ok := s.OnlineUsers[usr]
 	if !ok {
 		return "未找到用户", false
 	}
-	newRoom, ok := s.Rooms[roomName]
-	if !ok {
+	if _, ok := s.Rooms[roomName];!ok{
 		return "未找到房间", false
-	}
-	oldRoomName := u.CurrentRoom
-	if oldRoomName == roomName {
+	} 
+	if u.CurrentRoom == roomName {
 		return "已加入房间", true
 	}
-	if oldRoomName != "" {
-		oldRoom, _ := s.Rooms[oldRoomName]
-		delete(oldRoom.Users, user) //删除旧房间
-	}
-	newRoom.Users[user] = u
-	u.CurrentRoom = roomName
+	s.joinRoomUnsafe(u, roomName)
 	return "加入房间", true
 }
 
 // 退出房间
-func (s *Server) LeaveRoom1(user string) (string, bool) {
+func (s *Server) LeaveRoomByName(usr string) (string, bool) {
 	s.mapLock.Lock()
 	defer s.mapLock.Unlock()
-	u, ok := s.OnlineUsers[user]
+	u, ok := s.OnlineUsers[usr]
 	if !ok {
 		return "未找到用户", false
 	}
-	oldRoomName := u.CurrentRoom
-	if oldRoomName == "" {
+	if u.CurrentRoom == "" {
 		return "未加入房间", true
 	}
-	if oldRoom, ok := s.Rooms[oldRoomName]; ok {
-		delete(oldRoom.Users, user)
-	}
-	u.CurrentRoom = ""
+	s.leaveRoomUnsafe(u)
 	return "退出房间", true
 }

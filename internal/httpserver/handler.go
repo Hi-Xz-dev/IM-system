@@ -33,8 +33,8 @@ func (h *Handler)Rooms(c *gin.Context) {
 
 func (h *Handler)Members(c *gin.Context) {
 	room := strings.TrimSpace(c.Param("room")) //直接拿干净数据
-	if room == "" {                            //清理空格 防止脏数据
-		c.JSON(http.StatusBadRequest, Fail("invalid room parameter"))
+	room, ok := getRoomParam(c)
+	if !ok{
 		return
 	}
 	members, ok := h.server.GetMembers(room)
@@ -46,9 +46,8 @@ func (h *Handler)Members(c *gin.Context) {
 }
 func (h *Handler)Join(c *gin.Context) {
 	room := strings.TrimSpace(c.Param("room"))
-
-	if room == "" { //清理空格 防止脏数据
-		c.JSON(http.StatusBadRequest, Fail("invalid room parameter"))
+	room, ok := getRoomParam(c)
+	if !ok{
 		return
 	}
 	user := strings.TrimSpace(c.Query("user"))
@@ -56,7 +55,7 @@ func (h *Handler)Join(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, Fail("invalid user parameter"))
 		return
 	}
-	msg, ok := h.server.JoinRoom1(user, room)
+	msg, ok := h.server.JoinRoomByName(user, room)
 	if !ok {
 		c.JSON(http.StatusNotFound, Fail(msg))
 		return
@@ -70,7 +69,7 @@ func (h *Handler)Leave(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, Fail("invalid user parameter"))
 		return
 	}
-	msg, ok := h.server.LeaveRoom1(user)
+	msg, ok := h.server.LeaveRoomByName(user)
 	if !ok {
 		c.JSON(http.StatusNotFound, Fail(msg))
 		return

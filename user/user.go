@@ -14,7 +14,7 @@ type User struct {
 
 	ActiveTime int64 //心跳
 
-	CurrentRoom string //当前房间
+	JoinedRooms map[string]struct{} //用户加入哪些房间
 
 	IsClosed bool
 }
@@ -24,11 +24,12 @@ func NewUser(conn net.Conn) *User {
 	userAddr := conn.RemoteAddr().String()
 
 	u := &User{
-		Name:       userAddr,
-		Addr:       userAddr,
-		C:          make(chan string, 100),
-		conn:       conn,
-		ActiveTime: time.Now().Unix(), //时间初始化
+		Name:        userAddr,
+		Addr:        userAddr,
+		C:           make(chan string, 100),
+		conn:        conn,
+		ActiveTime:  time.Now().Unix(), //时间初始化
+		JoinedRooms: make(map[string]struct{}),
 	}
 	return u
 }
@@ -75,4 +76,17 @@ func (u *User) ListenMessage(disconnect chan<- *User) {
 			return
 		}
 	}
+}
+
+func (u *User) InRoom(roomName string) bool {
+	_, ok := u.JoinedRooms[roomName]
+	return ok
+}
+
+func (u *User) AddRoom(roomName string) {
+	u.JoinedRooms[roomName] = struct{}{}
+}
+
+func (u *User) RemoveRoom(roomName string) {
+	delete(u.JoinedRooms, roomName)
 }

@@ -33,7 +33,7 @@ func (s *Server) DoMessage(usr *user.User, msg string) {
 		s.handlerRoomchat(usr, cmd.Args)
 	//退出房间
 	case domain.CmdLeave:
-		s.LeaveRoom(usr)
+		s.handlerLeaveRoom(usr, cmd.Args)
 	//help
 	case domain.CmdHelp:
 		s.Help(usr)
@@ -42,7 +42,7 @@ func (s *Server) DoMessage(usr *user.User, msg string) {
 		s.Where(usr)
 	//房间人数
 	case domain.CmdMembers:
-		s.Members(usr)
+		s.handlerMenbers(usr, cmd.Args)
 	default:
 		s.BroadCast(usr, msg)
 	}
@@ -95,11 +95,38 @@ func (s *Server) handlerJoin(usr *user.User, args []string) {
 
 	s.JoinRoom(usr, args[0])
 }
+//房间聊天
 func (s *Server) handlerRoomchat(usr *user.User, args []string) {
-	if len(args) != 1 {
-		usr.SendMsg("[系统] 用法: room|消息内容\n")
+	if len(args) != 2 {
+		usr.SendMsg("[系统] 用法: room|房间名|消息内容\n")
 		return
 	}
 
-	s.RoomChat(usr, args[0])
+	s.RoomChat(usr, args[0], args[1])
 }
+//离开房间
+func (s *Server) handlerLeaveRoom(usr *user.User, args []string){
+	if len(args) != 1{
+		usr.SendMsg("[系统] 用法: leave|房间名\n")
+		return
+	}
+
+	s.LeaveRoom(usr, args[0])
+}
+
+//房间成员
+func (s *Server) handlerMenbers(usr *user.User, args []string){
+	if len(args) != 1 {
+		usr.SendMsg("[系统] 用法: members|房间名\n")
+		return
+	}
+	s.Members(usr, args[0])
+}
+
+
+
+
+
+
+
+

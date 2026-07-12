@@ -2,6 +2,7 @@ package server
 
 import (
 	"IM-system/user"
+	"strings"
 )
 
 // 用户上线业务
@@ -23,8 +24,14 @@ func (s *Server) Offline(usr *user.User) {
 		return
 	}
 	usr.IsClosed = true
-	if usr.CurrentRoom != "" {
-		s.leaveRoomUnsafe(usr)
+	//复制用户加入的全部房间
+	roomNames := make([]string, 0, len(usr.JoinedRooms))
+	for roomName := range usr.JoinedRooms {
+		roomNames = append(roomNames, roomName)
+	}
+	//逐一退出
+	for _, roomName := range roomNames {
+		s.leaveRoomUnsafe(usr, roomName)
 	}
 	delete(s.OnlineUsers, usr.Name)
 	s.mapLock.Unlock()
@@ -33,15 +40,18 @@ func (s *Server) Offline(usr *user.User) {
 }
 
 // 当前位置
-func (s *Server) Where(u *user.User) {
+func (s *Server) Where(usr *user.User) {
 	s.mapLock.RLock()
-	roomName := u.CurrentRoom
+	rooms := make([]string, 0, len(usr.JoinedRooms))
+	for roomName := range usr.JoinedRooms{
+		rooms = append(rooms, roomName)
+	}
 	s.mapLock.RUnlock()
-	if roomName == "" {
-		u.SendMsg("当前未加入房间")
+	if len(rooms) == 0 {
+		usr.SendMsg("当前未加入任何房间")
 		return
 	}
-	u.SendMsg("当前房间：" + roomName)
+	usr.SendMsg("已加入房间：" + strings.Join(rooms,","))
 }
 
 // 私聊功能
@@ -68,25 +78,13 @@ func (s *Server) Rename(usr *user.User, newName string) {
 		return
 	}
 	oldName := usr.Name
-	delete(s.OnlineUsers, oldName)
-	usr.Name = newName
-	s.OnlineUsers[newName] = usr
-	//同步更新房间成员列表
-	if usr.CurrentRoom != "" {
-		if r, ok := s.Rooms[usr.CurrentRoom]; ok {
-			delete(r.Users, oldName)
-			r.Users[newName] = usr
-		}
-	}
+	s.renameUserUnsafe(usr, oldName, newName)
 	//snalshot
 	users := make([]*user.User, 0, len(s.OnlineUsers))
 	for _, u := range s.OnlineUsers {
 		users = append(users, u)
 	}
-
 	s.mapLock.Unlock()
-
-	// 4. IO（锁外）
 	msg := "[系统] " + oldName + " 改名为 " + newName + "\n"
 	s.RoomBroadcast(users, msg)
 }
@@ -117,3 +115,57 @@ func (s *Server) GetOnlineUsers() []string {
 
 	return users
 }
+//===============Unsafe================
+//同步更新房间成员列表
+func (s *Server) renameUserRoomsUnsafe(usr *user.User, oldName, newName string){
+	for roomName := range usr.JoinedRooms{
+		r, ok := s.Rooms[roomName]
+		if !ok{
+			continue
+		}
+		delete(r.Users, oldName)
+		r.Users[newName] = usr
+	}
+}
+func (s *Server) renameUserUnsafe(usr *user.User, oldName, newName string){
+	delete(s.OnlineUsers, oldName)
+	usr.Name = newName
+	s.OnlineUsers[newName] = usr
+	s.renameUserRoomsUnsafe(usr, oldName, newName)
+	
+}
+
+//===============HTTP==================
+//用户改名
+func (s *Server) RenameByName(oldName, newName string)(string, bool){
+	s.mapLock.Lock()
+	defer s.mapLock.Unlock()
+	usr, ok := s.OnlineUsers[oldName]
+	if !ok{
+		return "未找到用户", false
+	}
+	if _, ok := s.OnlineUsers[newName];ok{
+		return "用户名已存在", false
+	}
+	s.renameUserUnsafe(usr, oldName, newName)
+	
+	return "修改用户名成功", true
+}
+//用户位置
+func (s *Server) GetUserRooms(userName string) ([]string, bool){
+	s.mapLock.Lock()
+	defer s.mapLock.Unlock()
+	u, ok := s.OnlineUsers[userName]
+	if !ok{
+		return nil, false
+	}
+	rooms := make([]string, 0, len(u.JoinedRooms))
+	for roomName := range u.JoinedRooms{
+		rooms = append(rooms, roomName)
+	}
+	if len(rooms) == 0 {
+		return []string{}, true
+	}
+	return rooms, true	
+}
+

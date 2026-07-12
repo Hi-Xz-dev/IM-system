@@ -12,10 +12,15 @@ func (s *Server) Start() {
 	//socket listen
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.IP, s.Port))
 	if err != nil {
-		fmt.Println("net.Listen err:", err)
+		logger.Log.Error("net.Listen err","error", err)
 		return
 	}
 	s.listener = listener
+	logger.Log.Info(
+	"tcp server started",
+	"ip", s.IP,
+	"port", s.Port,
+	)
 	//close listen socket
 	defer listener.Close()
 	//启动超时踢人功能
@@ -28,7 +33,7 @@ func (s *Server) Start() {
 		conn, err := listener.Accept()
 		if err != nil {
 			if s.IsShutdown {
-				fmt.Println("server shutdown, stop accepting connections")
+				logger.Log.Info("server shutdown, stop accepting connections",)
 				return
 			}
 			logger.Log.Error("accept failed", "error", err)

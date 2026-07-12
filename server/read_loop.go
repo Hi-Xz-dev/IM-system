@@ -3,7 +3,7 @@ package server
 import (
 	"IM-system/user"
 	"bufio"
-	"fmt"
+	"IM-system/internal/logger"
 	"net"
 	"strings"
 )
@@ -26,7 +26,12 @@ func (s *Server) readLoop(conn net.Conn, usr *user.User, done chan<- struct{}) {
 		s.DoMessage(usr, msg)
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Println("Conn Read err:", err)
-	}
+	logger.Log.Error(
+		"connection read failed",
+		"user", usr.Name,
+		"addr", usr.Addr,
+		"error", err,
+	)
+}
 	s.Offline(usr)
 }

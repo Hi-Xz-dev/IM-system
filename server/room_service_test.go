@@ -10,16 +10,17 @@ func TestRoomJoinLeave(t *testing.T) {
 	s := NewServer("127.0.0.1", 8080)
 
 	u := &user.User{
-		Name: "Tom",
-		Addr: "127.0.0.1:10001",
-		C:    make(chan string, 100),
+		Name:        "Tom",
+		Addr:        "127.0.0.1:10001",
+		C:           make(chan string, 100),
+		JoinedRooms: make(map[string]struct{}),
 	}
 
 	s.Online(u)
 	s.CreateRoom(u, "golang")
 	// 创建房间后，用户应该进入该房间
-	if u.CurrentRoom != "golang" {
-		t.Fatalf("expected current room golang, got %s", u.CurrentRoom)
+	if _, ok := u.JoinedRooms["golang"]; !ok {
+		t.Fatalf("expected current room golang, got %s", "golang")
 	}
 	// 房间应该已经创建
 	r, ok := s.Rooms["golang"]
@@ -30,11 +31,11 @@ func TestRoomJoinLeave(t *testing.T) {
 	if _, ok := r.Users["Tom"]; !ok {
 		t.Fatalf("expected Tom in room")
 	}
-	s.LeaveRoom(u)
+	s.LeaveRoom(u, "golang")
 
 	// 离开房间后，用户当前房间应该为空
-	if u.CurrentRoom != "" {
-		t.Fatalf("expected current room empty, got %s", u.CurrentRoom)
+	if _, ok := u.JoinedRooms["golang"]; ok {
+		t.Fatalf("expected current room empty, got %s", "golang")
 	}
 
 	// 房间为空后，应该自动删除

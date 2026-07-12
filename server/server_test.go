@@ -34,6 +34,7 @@ func TestOfflineDoubleCall(t *testing.T) {
 		Name: "Tom",
 		Addr: "127.0.0.1:10001",
 		C:    make(chan string, 100),
+		JoinedRooms: make(map[string]struct{}),
 	}
 
 	s.Online(u)

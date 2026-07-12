@@ -6,6 +6,7 @@ import (
 
 type Room struct {
 	Name  string
+	//当前房间成员
 	Users map[string]*user.User
 }
 

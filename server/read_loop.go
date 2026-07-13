@@ -10,6 +10,7 @@ import (
 //持续读取当前TCP客户端发来的信息，交给业务层处理
 func (s *Server) readLoop(conn net.Conn, usr *user.User, done chan<- struct{}) {
 	defer close(done)
+	//处理沾包半包
 	scanner := bufio.NewScanner(conn)
 
 	for scanner.Scan() {//返回bool

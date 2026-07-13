@@ -15,6 +15,7 @@ import (
 func main() {
 	logger.Init()
 	cfg := config.Load()
+	//创建并初始化一个 Server 对象。
 	s := server.NewServer(cfg.TCP.Host, cfg.TCP.Port)
 	logger.Log.Info(
 		"tcp server starting",

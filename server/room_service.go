@@ -70,15 +70,6 @@ func (s *Server) JoinRoom(joinuser *user.User, roomName string) {
 	s.RoomBroadcast(users, msg)
 	joinuser.SendMsg("成功加入房间：" + roomName)
 }
-
-// 加入房间 (内层)
-func (s *Server) joinRoomUnsafe(joinuser *user.User, roomName string) {
-	r := s.Rooms[roomName]
-	r.Users[joinuser.Name] = joinuser
-	joinuser.AddRoom(roomName)
-
-}
-
 // 退出房间（外层）
 func (s *Server) LeaveRoom(leaveuser *user.User, roomName string) {
 	s.mapLock.Lock()
@@ -108,20 +99,7 @@ func (s *Server) LeaveRoom(leaveuser *user.User, roomName string) {
 	leaveuser.SendMsg("退出房间成功")
 }
 
-// 退出房间（内层）
-func (s *Server) leaveRoomUnsafe(leaveuser *user.User, roomName string) {
 
-	r, ok := s.Rooms[roomName]
-	if !ok{
-		leaveuser.RemoveRoom(roomName)
-		return
-	}
-	delete(r.Users, leaveuser.Name)
-	leaveuser.RemoveRoom(roomName)
-	if len(r.Users) == 0 {
-		delete(s.Rooms, roomName) //房间无成员直接删除房间
-	}
-}
 
 // 创建房间
 func (s *Server) CreateRoom(createuser *user.User, roomName string) {
@@ -193,6 +171,28 @@ func (s *Server) GetMembers(roomName string) ([]string, bool) {
 		roomUsers = append(roomUsers, name)
 	}
 	return roomUsers, true
+}
+//================Unsafe========================
+// 加入房间 (内层)
+func (s *Server) joinRoomUnsafe(joinuser *user.User, roomName string) {
+	r := s.Rooms[roomName]
+	r.Users[joinuser.Name] = joinuser
+	joinuser.AddRoom(roomName)
+
+}
+// 退出房间
+func (s *Server) leaveRoomUnsafe(leaveuser *user.User, roomName string) {
+
+	r, ok := s.Rooms[roomName]
+	if !ok{
+		leaveuser.RemoveRoom(roomName)
+		return
+	}
+	delete(r.Users, leaveuser.Name)
+	leaveuser.RemoveRoom(roomName)
+	if len(r.Users) == 0 {
+		delete(s.Rooms, roomName) //房间无成员直接删除房间
+	}
 }
 //================HTTP========================
 

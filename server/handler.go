@@ -6,7 +6,7 @@ import(
 )
 // handler
 func (s *Server) Handler(conn net.Conn) {
-	//..当前链接的业务
+	//把底层 TCP 连接包装成业务用户对象
 	usr := user.NewUser(conn)
 	go usr.ListenMessage(s.Disconnect)
 	//通知 Handler：读协程结束了，你也可以退出了 只做通知 内容无所谓 省内存

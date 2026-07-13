@@ -39,7 +39,7 @@ func (s *Server) Offline(usr *user.User) {
 	s.BroadCast(usr, "已下线")
 }
 
-// 当前位置
+// 查询用户加入房间列表
 func (s *Server) Where(usr *user.User) {
 	s.mapLock.RLock()
 	rooms := make([]string, 0, len(usr.JoinedRooms))
@@ -91,16 +91,20 @@ func (s *Server) Rename(usr *user.User, newName string) {
 
 // Help
 func (s *Server) Help(user *user.User) {
-	user.SendMsg(`======= 命令列表 =======
-who                 查看在线用户
-rename|名字         修改昵称
-to|用户|消息        私聊
-rooms               查看房间
-create|房间         创建房间
-join|房间           加入房间
-leave               离开房间
-room|消息           房间聊天
-quit                退出系统
+	user.SendMsg(
+`======= 命令列表 =======
+who                   查看在线用户
+rename|名字           修改昵称
+to|用户|消息          私聊
+rooms                 查看房间列表
+create|房间           创建房间
+join|房间             加入房间
+leave|房间            退出房间
+room|房间|消息        房间聊天
+members|房间          房间成员
+where                 查看已加入的房间
+help                  命令列表
+quit                  退出系统
 ========================`)
 }
 

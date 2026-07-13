@@ -1,284 +1,258 @@
 # Go IM System
 
-> A high-performance Instant Messaging System built with Go.
+> 基于 Go 的即时通讯系统，从单机 TCP Server 逐步演进为分布式 IM。
 
 ---
 
-# Features
+## 功能特性
 
-- TCP-based Instant Messaging
-- Public Chat
-- Private Chat
-- Room Chat
-- HTTP REST API (Gin)
-- Graceful Shutdown
-- Sticky Packet / Half Packet Handling
-- Protocol Parser
-- Unified TCP Write Path
-- Unit Tests
-- Race Detector
-
----
-
-# Project Overview
-
-Go IM System is an Instant Messaging System built with Go.
-
-The goal of this project is **not** to build a simple chat room, but to gradually evolve into a production-oriented **Distributed IM System**.
-
-Instead of focusing only on features, this project follows an incremental engineering roadmap, continuously improving architecture, maintainability, and scalability.
+- TCP 长连接 IM 服务（公聊、私聊、房间群聊）
+- 多房间支持（用户可同时加入多个房间）
+- HTTP REST API（Gin）
+- 自定义文本协议 + 结构化解析
+- 优雅退出（Graceful Shutdown）
+- 结构化日志（slog）
+- 背压保护（缓冲 Channel + `select/default`）
+- TCP 粘包/半包处理（`bufio.Scanner`）
+- 统一 TCP 写路径
+- Table-driven 单元测试 + Race Detector + Benchmark
 
 ---
 
-# Design Philosophy
-
-This project follows several engineering principles:
-
-- Correctness before performance
-- Stability before features
-- Solve one problem at a time
-- One module, one responsibility
-- Every refactoring keeps the system runnable
-- Every new feature is built on a stable architecture
-
----
-
-# Development Roadmap
-
-## Phase 1 — Standalone IM
-
-Goal:
-
-Build a stable, correct and testable standalone IM server.
-
-- [x] Handler lifecycle management (no goroutine leaks)
-- [x] TCP sticky packet / half packet handling (`bufio.Scanner`)
-- [x] Unified TCP write path (`User.C -> ListenMessage`)
-- [x] SendMsg refactoring (non-blocking `select + default`)
-- [x] Protocol.Parse abstraction (`internal/protocol`)
-- [x] Command abstraction (`internal/domain`)
-- [x] Offline idempotency (`IsClosed`)
-- [x] Graceful Shutdown (`SIGINT/SIGTERM`)
-- [x] Go Race Detector (`go test -race`)
-- [x] Unit Tests
-- [x] Benchmark
-
----
-
-## Phase 2 — Engineering
-
-Goal:
-
-Transform the project into a production-style Go backend.
-
-Including:
-
-- Gin API layering
-- DTO
-- Middleware
-- Config
-- Logger
-- JWT Authentication
-- bcrypt
-- MySQL
-- Repository Pattern
-
-Database will mainly be used for:
-
-- User authentication
-- Message history
-- Offline messages
-
----
-
-## Phase 3 — Performance
-
-Goal:
-
-Measure and optimize system performance with real data.
-
-Including:
-
-- pprof
-- Benchmark
-- Stress Testing
-- Maximum Connections
-- Messages / Second
-- CPU Profiling
-- Memory Profiling
-- Performance Optimization
-
----
-
-## Phase 4 — Distributed IM
-
-Goal:
-
-Evolve into a distributed instant messaging system.
-
-Including:
-
-- Redis
-- Online User Routing
-- Multi-Gateway
-- Cross-node Private Chat
-- Cross-node Room Chat
-- Offline Messages
-- Message Synchronization
-- Docker Compose
-- Kubernetes (Optional)
-
-After this phase, the project officially becomes:
-
-**Distributed IM System**
-
----
-
-# Engineering Highlights
-
-- **Protocol Parser Abstraction** — `Parse(raw) -> Command{Type, Args, Raw}` replaces string-based command matching.
-- **Unified TCP Write Path** — All outgoing messages go through `User.C -> ListenMessage -> conn.Write`.
-- **Graceful Shutdown** — `SIGINT/SIGTERM -> Stop Accept -> Offline Users -> Release Resources`.
-- **Handler Lifecycle Management** — `done` channel guarantees Handler exits only after the reader goroutine exits.
-- **Sticky Packet Handling** — `bufio.Scanner` reads messages line by line, eliminating TCP sticky/half packet issues.
-- **Offline Idempotency** — `IsClosed` prevents duplicate offline operations.
-- **Backpressure Protection** — Buffered channels with `select/default` prevent slow consumers from blocking the server.
-- **Unit Testing** — Table-driven tests cover protocol parsing and core server logic.
-- **Concurrency Safety** — Shared state is protected by `sync.RWMutex` and verified using Go Race Detector.
-
----
-
-# Testing
+## 快速启动
 
 ```bash
-# Run all tests
-go test ./...
+# 终端 1 — 启动服务端
+go run cmd/server/main.go
 
-# Run all tests with race detector
-go test -race ./...
+# 终端 2 — 客户端 A
+go run cmd/client/main.go
 
-# Run protocol tests
-go test -v ./internal/protocol
+# 终端 3 — 客户端 B
+go run cmd/client/main.go
 ```
 
-## Test Coverage
-
-| Package | Test | Description |
-|----------|------|-------------|
-| `internal/protocol` | `TestParse` | Protocol parsing (12 commands + empty input) |
-| `server` | `TestOnlineOffline` | User online/offline lifecycle |
-| `server` | `TestOfflineDoubleCall` | Offline idempotency |
-| `server` | `TestRoomJoinLeave` | Room lifecycle |
-| `server` | `TestRenameSync` | Rename synchronization |
+默认监听 `127.0.0.1:8080`（TCP）+ `127.0.0.1:8081`（HTTP）。
 
 ---
 
-# Why Refactor?
+## 项目结构
 
-The first version of the project already supported:
-
-- User online/offline
-- Public chat
-- Private chat
-- Room chat
-- HTTP API
-
-As more features were added, the Server gradually became responsible for:
-
-- TCP connection management
-- User management
-- Room management
-- Message broadcasting
-- Protocol parsing
-- HTTP API
-
-This resulted in:
-
-- Increasing responsibilities
-- High coupling
-- Reduced maintainability
-- Higher development cost
-
-Therefore, feature development was intentionally paused in favor of architectural refactoring.
-
-The goal of refactoring is **not** to add more features, but to improve maintainability, testability, and long-term scalability.
+```
+IM-system/
+├── cmd/
+│   ├── server/main.go              # 入口：组装 TCP + HTTP + 信号处理
+│   └── client/main.go              # 终端交互客户端
+├── internal/
+│   ├── config/config.go            # 配置（TCP / HTTP 分离）
+│   ├── domain/command.go           # 命令类型常量 + Command 结构体
+│   ├── httpserver/
+│   │   ├── handler.go              # HTTP 处理器
+│   │   ├── router.go               # 路由注册
+│   │   ├── middleware.go            # 请求日志 + Panic 恢复
+│   │   ├── response.go             # 统一 JSON 响应（OK / Fail）
+│   │   └── params.go               # URL 参数校验
+│   ├── logger/logger.go            # 结构化日志（slog）
+│   ├── protocol/
+│   │   ├── parser.go               # 文本协议 → Command 解析
+│   │   └── parser_test.go          # 12 个命令 + Benchmark
+│   └── service/
+│       └── room_service.go         # Room HTTP 外观层
+├── server/                         # TCP 核心服务
+│   ├── server.go                   # Server 结构体 + NewServer
+│   ├── lifecycle.go                # Start() + Shutdown()
+│   ├── handler.go                  # 连接入口
+│   ├── read_loop.go                # TCP 读循环
+│   ├── broadcaster.go              # 消息广播引擎
+│   ├── cleaner.go                  # 心跳超时扫描
+│   ├── disconnect.go               # 断连通知消费
+│   ├── command.go                  # 协议分发（DoMessage + handler）
+│   ├── room_service.go             # 房间操作（TCP + HTTP 共用内核）
+│   ├── user_service.go             # 用户操作（TCP + HTTP 共用内核）
+│   ├── dto.go                      # RoomInfo DTO
+│   ├── server_test.go              # 测试：上下线、幂等
+│   ├── user_service_test.go        # 测试：改名同步
+│   └── room_service_test.go        # 测试：房间生命周期
+├── user/user.go                    # User 模型（多房间、缓冲 Channel、写超时）
+├── room/room.go                    # Room 模型
+├── go.mod
+└── README.md
+```
 
 ---
 
-# Refactoring Principles
+## 通信协议
 
-During refactoring:
+TCP 长连接，每条消息以 `\n` 结尾。自定义文本协议以 `|` 分隔：
 
-- No new chat features
-- No protocol changes
-- One problem solved at a time
-- Keep the project runnable after every refactoring
-- Keep commits small and focused
-- Move to the next stage only after finishing the current one
-
----
-
-# Current Stage
-
-Current status:
-
-**Phase 1 (Completed) → Phase 2 (In Progress)**
-
-Phase 1 has achieved its primary goal:
-
-- Stable architecture
-- Correct behavior
-- Engineering-oriented refactoring
-- Unit testing
-
-Current focus:
-
-- [ ] Gin API Layer
-- [ ] DTO
-- [ ] Middleware
-- [ ] Config
-- [ ] Logger
-- [ ] JWT Authentication
-- [ ] MySQL
-- [ ] Repository
+| 命令 | 格式 | 说明 |
+|---|---|---|
+| 公聊 | 任意文本 | 广播全体在线用户 |
+| 私聊 | `to\|用户名\|内容` | 发送指定用户 |
+| 改名 | `rename\|新名字` | 修改昵称（同步所有房间成员表） |
+| 在线列表 | `who` | 查询在线用户 |
+| 房间列表 | `rooms` | 查看所有房间及人数 |
+| 创建房间 | `create\|房间名` | 创建新房间 |
+| 加入房间 | `join\|房间名` | 加入已有房间 |
+| 退出房间 | `leave\|房间名` | 退出指定房间 |
+| 房间群聊 | `room\|房间名\|内容` | 发送到房间全体成员 |
+| 房间成员 | `members\|房间名` | 查看房间成员列表 |
+| 当前位置 | `where` | 查看已加入的房间 |
+| 帮助 | `help` | 打印命令列表 |
+| 退出 | `quit` | 断开连接 |
 
 ---
 
-# Long-term Architecture
+## HTTP API
 
-```
-                Client
-                   │
-            TCP / WebSocket
-                   │
-              Gateway Layer
-                   │
-             Protocol Layer
-                   │
-           Application Layer
-                   │
-             Message Hub
-                   │
-        ┌──────────┴──────────┐
-        │                     │
-      Storage              Cache
-      MySQL               Redis
-```
+Gin 运行在 `:8081`，统一响应格式：`{"code":0,"msg":"ok","data":...}`。
 
-Current implementation:
-
-```
-Client
-    │
-TCP Connection
-    │
-Standalone IM Server
-```
-
-Future versions will gradually evolve into a distributed architecture.
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/ping` | 健康检查 |
+| GET | `/online-users` | 查询在线用户名列表 |
+| GET | `/rooms` | 查询所有房间及人数 |
+| GET | `/rooms/:room/members` | 查询房间成员 |
+| GET | `/users/:user/rooms` | 查询用户已加入的房间 |
+| POST | `/rooms` | 创建房间 `{"name":"...","user":"..."}` |
+| POST | `/rooms/:room/members/:user` | 加入房间 |
+| DELETE | `/rooms/:room/members/:user` | 退出房间 |
+| PUT | `/users/:user` | 用户改名 `{"name":"新名字"}` |
 
 ---
 
-# License
+## TCP ↔ HTTP 一致性
+
+```
+TCP 命令              HTTP 路由
+──────────────────────────────────────────
+who          →  GET  /online-users
+rename|xxx   →  PUT  /users/:user
+create|room  →  POST /rooms
+rooms        →  GET  /rooms
+join|room    →  POST /rooms/:room/members/:user
+leave|room   →  DELETE /rooms/:room/members/:user
+members|room →  GET  /rooms/:room/members
+where        →  GET  /users/:user/rooms
+```
+
+---
+
+## 测试
+
+```bash
+go test ./...                        # 全部测试
+go test -race ./...                  # + 竞态检测
+go test -bench=. -benchmem ./internal/protocol/  # 性能基准
+```
+
+| 包 | 测试函数 | 覆盖内容 |
+|---|---|---|
+| `internal/protocol` | `TestParse` | 12 个命令 + 空输入 |
+| `internal/protocol` | `BenchmarkParse` | 26.78 ns/op, 48 B/op |
+| `server` | `TestOnlineOffline` | 用户上下线 |
+| `server` | `TestOfflineDoubleCall` | 下线幂等（IsClosed） |
+| `server` | `TestRoomJoinLeave` | 房间创建/加入/退出/自动销毁 |
+| `server` | `TestRenameSync` | 改名同步 OnlineUsers + 房间成员表 |
+
+---
+
+## 工程亮点
+
+- **协议解析抽象** — `Parse(raw) → Command{Type, Args, Raw}` 替代字符串匹配
+- **统一 TCP 写路径** — 所有消息经 `User.C → ListenMessage → conn.Write` 单一路径
+- **多房间支持** — `JoinedRooms map[string]struct{}`，改名和下线同步所有房间
+- **TCP + HTTP 共用内核** — `joinRoomUnsafe` / `leaveRoomUnsafe` 被两套外围共用
+- **背压保护** — 缓冲 Channel（容量 100）+ `select/default` 非阻塞发送
+- **Handler 生命周期** — `done` channel 保证读协程退出后 Handler 才退出，零泄漏
+- **Offline 幂等** — `IsClosed` 标记位防止多路径重复下线
+- **优雅退出** — `SIGINT/SIGTERM` → 停止 Accept → 逐用户下线 → 释放资源
+- **结构化日志** — `slog`，每条 HTTP 请求记录 method/path/status/cost
+- **并发安全** — `sync.RWMutex` + Lock-Snapshot-IO 模式，Race Detector 验证通过
+
+---
+
+## 并发模型
+
+**单锁 + 快照模式：**
+
+```
+Lock → 复制数据到本地 Slice → Unlock → 用 Slice 做 IO
+  ↑                                      ↑
+ 数据修改（快）                      不阻塞其他请求
+```
+
+一把 `sync.RWMutex` 保护 `OnlineUsers` 和 `Rooms`，所有读写锁不跨越 Channel IO。
+
+### Goroutine 拓扑
+
+| Goroutine | 创建者 | 退出条件 | 职责 |
+|---|---|---|---|
+| Accept 循环 | `main()` | Shutdown | 监听端口，每连接启动 Handler |
+| `ListenMessager` | `Start()` | 进程退出 | 消费 Message chan，snapshot 后广播 |
+| `CleanOnlineUser` | `Start()` | 进程退出 | 每 10s 扫描超时用户 |
+| `ListenDisconnect` | `Start()` | 进程退出 | 消费 Disconnect chan，触发 Offline |
+| `ListenMessage` | `Handler()` | 写超时/写失败 | 消费 User.C，写 TCP（5s 超时） |
+| 读协程 | `Handler()` | 连接断开/quit/错误 | 读 TCP，更新心跳，协议分发 |
+
+---
+
+## Roadmap
+
+### Phase 1 — 单机 IM 稳定性 ✅
+
+- [x] Handler 生命周期（零泄漏）
+- [x] TCP 粘包/半包
+- [x] TCP 写统一出口
+- [x] 非阻塞 `select + default`
+- [x] 协议解析抽象
+- [x] Offline 幂等
+- [x] 优雅退出
+- [x] Race Detector
+- [x] 单元测试
+- [x] Benchmark
+
+### Phase 2 — 工程化（进行中）
+
+- [x] Config（TCP / HTTP 分离）
+- [x] 结构化日志（slog）
+- [x] Gin API 分层（`internal/httpserver`）
+- [x] 统一 JSON 响应 DTO
+- [x] Middleware（RequestLogger + Recovery）
+- [x] 多房间模型
+- [x] TCP ↔ HTTP API 一致性
+- [ ] JWT 认证
+- [ ] bcrypt
+- [ ] MySQL 持久化
+- [ ] Repository 模式
+
+### Phase 3 — 性能优化
+
+- pprof（CPU / 内存 / goroutine）
+- 压力测试（最大连接数、msg/s、延迟）
+- 优化前后数据对比
+
+### Phase 4 — 分布式 IM
+
+- Redis 用户路由
+- 多 Gateway 实例
+- 跨节点私聊 / 群聊
+- 离线消息 / 消息同步
+- Docker Compose / Kubernetes
+
+---
+
+## 设计原则
+
+- 先保证正确，再考虑性能
+- 先保证稳定，再增加功能
+- 每次只解决一个问题
+- 每个模块只负责一件事
+- 所有重构保持系统可运行
+- 所有新功能建立在稳定架构之上
+
+---
+
+## License
 
 MIT

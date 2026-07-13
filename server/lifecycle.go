@@ -9,7 +9,7 @@ import (
 
 // 启动服务器接口
 func (s *Server) Start() {
-	//socket listen
+	//在指定 IP 和端口创建 TCP 监听器 listener
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.IP, s.Port))
 	if err != nil {
 		logger.Log.Error("net.Listen err","error", err)
@@ -23,10 +23,11 @@ func (s *Server) Start() {
 	)
 	//close listen socket
 	defer listener.Close()
-	//启动超时踢人功能
+	//定时清理超时用户
 	go s.CleanOnlineUser()
+	//等待断线用户事件，然后执行 Offline
 	go s.ListenDisconnect()
-	//启动监听Message的goroutine
+	//等待广播消息，然后投递给在线用户
 	go s.ListenMessager()
 	for {
 		//accept等待 TCP三次握手

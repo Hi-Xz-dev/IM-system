@@ -58,7 +58,7 @@ func (s *Server) handlerWho(usr *user.User) {
 
 	s.mapLock.RUnlock()
 	for _, cli := range users {
-		onlineMsg := "[" + cli.Addr + "]" + cli.Name + ":" + "在线\n"
+		onlineMsg := "[" + cli.Addr + "]" + cli.Nickname + ":" + "在线\n"
 		usr.SendMsg(onlineMsg)
 	}
 }

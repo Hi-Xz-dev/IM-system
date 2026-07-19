@@ -39,6 +39,8 @@ func Parse(raw string) domain.Command {
 		return domain.Command{Type: domain.CmdMembers, Args: args, Raw: raw}
 	case "help":
 		return domain.Command{Type: domain.CmdHelp, Args: args, Raw: raw}
+	case "auth":
+		return domain.Command{Type: domain.CmdAuth, Args: args, Raw: raw}
 	default:
 		return domain.Command{Type: domain.CmdPublic, Args: args, Raw: raw}
 	}

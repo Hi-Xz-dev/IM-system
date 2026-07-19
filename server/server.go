@@ -5,6 +5,7 @@ import (
 	"IM-system/user"
 	"net"
 	"sync"
+	"IM-system/internal/auth"
 )
 
 type Server struct {
@@ -25,10 +26,11 @@ type Server struct {
 	listener net.Listener
 	//关闭
 	IsShutdown bool
+	authService *auth.Service
 }
 
 // 创建一个server接口
-func NewServer(ip string, port int) *Server {
+func NewServer(ip string, port int, authService *auth.Service,) *Server {
 	return &Server{
 		IP:          ip,
 		Port:        port,
@@ -36,5 +38,6 @@ func NewServer(ip string, port int) *Server {
 		Message:     make(chan string, 100),
 		Rooms:       make(map[string]*room.Room),
 		Disconnect:  make(chan *user.User, 100),
+		authService: authService,
 	}
 }

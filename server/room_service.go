@@ -66,7 +66,7 @@ func (s *Server) JoinRoom(joinuser *user.User, roomName string) {
 	s.joinRoomUnsafe(joinuser, roomName)
 	s.mapLock.Unlock() //正常返回
 	//广播消息
-	msg := "[系统][" + joinuser.Name + "]" + "加入房间：" + roomName + "\n"
+	msg := "[系统][" + joinuser.Nickname + "]" + "加入房间：" + roomName + "\n"
 	s.RoomBroadcast(users, msg)
 	joinuser.SendMsg("成功加入房间：" + roomName)
 }
@@ -94,7 +94,7 @@ func (s *Server) LeaveRoom(leaveuser *user.User, roomName string) {
 	//modify data
 	s.leaveRoomUnsafe(leaveuser, roomName)
 	s.mapLock.Unlock()
-	msg := "[系统][" + leaveuser.Name + "]" + "离开房间：" + roomName + "\n"
+	msg := "[系统][" + leaveuser.Nickname + "]" + "离开房间：" + roomName + "\n"
 	s.RoomBroadcast(users, msg)
 	leaveuser.SendMsg("退出房间成功")
 }
@@ -138,7 +138,7 @@ func (s *Server) RoomChat(sender *user.User, roomName,content string) {
 		users = append(users, u)
 	}
 	s.mapLock.RUnlock()
-	msg := "[" + roomName + "][" + sender.Name + "] " + content
+	msg := "[" + roomName + "][" + sender.Nickname + "] " + content
 	s.RoomBroadcast(users, msg)
 }
 
@@ -176,7 +176,7 @@ func (s *Server) GetMembers(roomName string) ([]string, bool) {
 // 加入房间 (内层)
 func (s *Server) joinRoomUnsafe(joinuser *user.User, roomName string) {
 	r := s.Rooms[roomName]
-	r.Users[joinuser.Name] = joinuser
+	r.Users[joinuser.Nickname] = joinuser
 	joinuser.AddRoom(roomName)
 
 }
@@ -188,7 +188,7 @@ func (s *Server) leaveRoomUnsafe(leaveuser *user.User, roomName string) {
 		leaveuser.RemoveRoom(roomName)
 		return
 	}
-	delete(r.Users, leaveuser.Name)
+	delete(r.Users, leaveuser.Nickname)
 	leaveuser.RemoveRoom(roomName)
 	if len(r.Users) == 0 {
 		delete(s.Rooms, roomName) //房间无成员直接删除房间

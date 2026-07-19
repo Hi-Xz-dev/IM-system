@@ -5,109 +5,124 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Go IM System</title>
 <style>
-  :root {
-    --bg: #f5f5f5;
-    --card: #fff;
-    --border: #e0e0e0;
-    --text: #333;
-    --muted: #888;
-    --primary: #4f46e5;
-    --danger: #dc2626;
-    --success: #16a34a;
-    --radius: 8px;
-  }
+  :root { --bg: #f0f2f5; --card: #fff; --border: #e0e0e0; --text: #333; --muted: #999; --primary: #4f46e5; --danger: #dc2626; --success: #16a34a; --radius: 10px; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-  .header { background: var(--primary); color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
-  .header h1 { font-size: 20px; }
-  .header .status { font-size: 12px; opacity: .8; }
-  .container { max-width: 1100px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
-  .card h3 { font-size: 14px; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
-  .user-bar { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; }
-  .user-bar input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
-  .user-bar input:focus { outline: none; border-color: var(--primary); }
+  .header { background: var(--primary); color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 18px; }
+  .header .user-info { font-size: 13px; display: flex; align-items: center; gap: 12px; }
   .btn { padding: 8px 16px; border: none; border-radius: var(--radius); font-size: 13px; cursor: pointer; font-weight: 500; }
   .btn-primary { background: var(--primary); color: #fff; }
   .btn-primary:hover { opacity: .9; }
   .btn-danger { background: var(--danger); color: #fff; }
-  .btn-danger:hover { opacity: .9; }
-  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+
+  /* 登录页 */
+  .auth-page { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 56px); }
+  .auth-card { background: var(--card); border-radius: var(--radius); padding: 40px 32px; width: 380px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+  .auth-card h2 { text-align: center; margin-bottom: 8px; }
+  .auth-card .sub { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .auth-card label { font-size: 13px; display: block; margin-bottom: 4px; margin-top: 12px; color: #555; }
+  .auth-card input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
+  .auth-card input:focus { outline: none; border-color: var(--primary); }
+  .auth-card .btn { width: 100%; padding: 12px; margin-top: 20px; font-size: 15px; }
+  .auth-card .switch { text-align: center; margin-top: 16px; font-size: 13px; color: var(--muted); }
+  .auth-card .switch a { color: var(--primary); cursor: pointer; }
+
+  /* 控制台 */
+  .dashboard { display: none; max-width: 1100px; margin: 0 auto; padding: 20px; }
+  .grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .card h3 { font-size: 13px; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
   .list { list-style: none; }
   .list li { padding: 8px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
   .list li:last-child { border-bottom: none; }
   .list .empty { color: var(--muted); font-style: italic; }
   .badge { background: var(--primary); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
   .room-actions { display: flex; gap: 4px; }
-  .section { margin-bottom: 20px; }
-  .section:last-child { margin-bottom: 0; }
+  .input-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .input-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; }
+  .input-row input:focus { outline: none; border-color: var(--primary); }
+
   .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: var(--radius); color: #fff; font-size: 14px; z-index: 999; animation: fadeIn .3s; }
   .toast-success { background: var(--success); }
   .toast-error { background: var(--danger); }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-  .input-row { display: flex; gap: 8px; margin-bottom: 12px; }
-  .input-row input { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; }
-  .input-row input:focus { outline: none; border-color: var(--primary); }
-  @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+  @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .auth-card { width: 100%; margin: 16px; } }
 </style>
 </head>
 <body>
 
 <div class="header">
   <h1>Go IM System</h1>
-  <span class="status" id="serverStatus">连接中...</span>
+  <div class="user-info" id="headerUser" style="display:none;"></div>
 </div>
 
-<div class="container">
-
-  <!-- 用户栏 -->
-  <div class="card user-bar">
-    <label style="font-size:14px;white-space:nowrap;">当前用户：</label>
-    <input type="text" id="currentUser" placeholder="输入用户名（需先通过 TCP 客户端上线）" maxlength="20">
-    <button class="btn btn-primary" onclick="renameUser()">改名</button>
+<!-- 登录/注册 -->
+<div class="auth-page" id="authPage">
+  <div class="auth-card" id="loginCard">
+    <h2>登录</h2>
+    <p class="sub">登录已注册的账号</p>
+    <label>用户名</label>
+    <input type="text" id="loginUsername" placeholder="用户名" maxlength="20">
+    <label>密码</label>
+    <input type="password" id="loginPassword" placeholder="密码" maxlength="30">
+    <button class="btn btn-primary" onclick="handleLogin()">登 录</button>
+    <p class="switch">没有账号？<a onclick="showRegister()">去注册</a></p>
   </div>
 
-  <!-- 在线用户 -->
-  <div>
-    <div class="card">
-      <h3>在线用户 <span id="onlineCount" style="color:var(--text);font-weight:600;">0</span></h3>
-      <ul class="list" id="onlineUsers"><li class="empty">加载中...</li></ul>
-    </div>
-    <div class="card" style="margin-top:16px;">
-      <h3>我的房间</h3>
-      <ul class="list" id="myRooms"><li class="empty">请先设置用户名</li></ul>
-    </div>
+  <div class="auth-card" id="registerCard" style="display:none;">
+    <h2>注册</h2>
+    <p class="sub">创建新账号</p>
+    <label>用户名</label>
+    <input type="text" id="regUsername" placeholder="用户名" maxlength="20">
+    <label>昵称</label>
+    <input type="text" id="regNickname" placeholder="显示名称" maxlength="20">
+    <label>密码</label>
+    <input type="password" id="regPassword" placeholder="密码" maxlength="30">
+    <button class="btn btn-primary" onclick="handleRegister()">注 册</button>
+    <p class="switch">已有账号？<a onclick="showLogin()">去登录</a></p>
   </div>
+</div>
 
-  <!-- 房间管理 -->
-  <div>
-    <!-- 创建房间 -->
-    <div class="card section">
-      <h3>创建房间</h3>
-      <div class="input-row">
-        <input type="text" id="newRoomName" placeholder="房间名" maxlength="20">
-        <button class="btn btn-primary" onclick="createRoom()">创建</button>
+<!-- 控制台 -->
+<div class="dashboard" id="dashboard">
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h3>在线用户 <span id="onlineCount" style="color:var(--text);">0</span></h3>
+        <ul class="list" id="onlineUsers"><li class="empty">加载中...</li></ul>
+      </div>
+      <div class="card">
+        <h3>我的房间</h3>
+        <ul class="list" id="myRooms"><li class="empty">未加入任何房间</li></ul>
       </div>
     </div>
-
-    <!-- 房间列表 + 成员 -->
-    <div class="card section">
-      <h3>房间列表</h3>
-      <ul class="list" id="rooms"><li class="empty">加载中...</li></ul>
-    </div>
-
-    <div class="card section" id="memberPanel" style="display:none;">
-      <h3 id="memberPanelTitle">房间成员</h3>
-      <ul class="list" id="roomMembers"></ul>
+    <div>
+      <div class="card">
+        <h3>创建房间</h3>
+        <div class="input-row">
+          <input type="text" id="newRoomName" placeholder="房间名" maxlength="20">
+          <button class="btn btn-primary" onclick="createRoom()">创建</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>房间列表</h3>
+        <ul class="list" id="rooms"><li class="empty">加载中...</li></ul>
+      </div>
+      <div class="card" id="memberPanel" style="display:none;">
+        <h3 id="memberPanelTitle">房间成员</h3>
+        <ul class="list" id="roomMembers"></ul>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
 const API = '';
-const user = () => document.getElementById('currentUser').value.trim();
 
-// Toast
+// 工具
 function toast(msg, type) {
   const t = document.createElement('div');
   t.className = 'toast toast-' + type;
@@ -116,23 +131,88 @@ function toast(msg, type) {
   setTimeout(() => t.remove(), 2500);
 }
 
-// 通用 API 请求
+function authHeaders() {
+  const token = localStorage.getItem('im_token');
+  return token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
 async function api(method, path, body) {
-  const opts = { method, headers: {} };
-  if (body) {
-    opts.headers['Content-Type'] = 'application/json';
-    opts.body = JSON.stringify(body);
-  }
+  const opts = { method, headers: authHeaders() };
+  if (body) opts.body = JSON.stringify(body);
   const res = await fetch(API + path, opts);
   return res.json();
 }
 
-// 刷新全部
+// ========== 登录/注册 ==========
+
+function showRegister() {
+  document.getElementById('loginCard').style.display = 'none';
+  document.getElementById('registerCard').style.display = 'block';
+}
+
+function showLogin() {
+  document.getElementById('registerCard').style.display = 'none';
+  document.getElementById('loginCard').style.display = 'block';
+}
+
+async function handleLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!username || !password) return toast('请填写用户名和密码', 'error');
+  const data = await api('POST', '/login', { username, password });
+  if (data.code === 0 && data.data) {
+    localStorage.setItem('im_token', data.data.Token);
+    localStorage.setItem('im_username', data.data.Nickname);
+    showDashboard(data.data);
+    toast('登录成功', 'success');
+  } else {
+    toast(data.msg || '登录失败', 'error');
+  }
+}
+
+async function handleRegister() {
+  const username = document.getElementById('regUsername').value.trim();
+  const nickname = document.getElementById('regNickname').value.trim();
+  const password = document.getElementById('regPassword').value;
+  if (!username || !password || !nickname) return toast('请填写所有字段', 'error');
+  const data = await api('POST', '/register', { username, password, nickname });
+  if (data.code === 0) {
+    toast('注册成功，请登录', 'success');
+    showLogin();
+    document.getElementById('loginUsername').value = username;
+    document.getElementById('loginPassword').value = '';
+  } else {
+    toast(data.msg || '注册失败', 'error');
+  }
+}
+
+// ========== 控制台 ==========
+
+function showDashboard(user) {
+  document.getElementById('authPage').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('headerUser').style.display = 'flex';
+  document.getElementById('headerUser').innerHTML = '<span>' + esc(user.Nickname || user.Username) + '</span><button class="btn btn-outline btn-sm" onclick="handleLogout()">退出</button>';
+  refresh();
+  setInterval(refresh, 5000);
+}
+
+function handleLogout() {
+  localStorage.removeItem('im_token');
+  localStorage.removeItem('im_username');
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('authPage').style.display = 'flex';
+  document.getElementById('headerUser').style.display = 'none';
+  document.getElementById('loginPassword').value = '';
+  showLogin();
+}
+
+// ========== 管理功能 ==========
+
 async function refresh() {
   await Promise.all([loadOnlineUsers(), loadRooms(), loadMyRooms()]);
 }
 
-// 在线用户
 async function loadOnlineUsers() {
   try {
     const data = await api('GET', '/online-users');
@@ -140,162 +220,82 @@ async function loadOnlineUsers() {
       const list = data.data || [];
       document.getElementById('onlineCount').textContent = list.length;
       const ul = document.getElementById('onlineUsers');
-      if (list.length === 0) {
-        ul.innerHTML = '<li class="empty">暂无在线用户</li>';
-      } else {
-        ul.innerHTML = list.map(u => `<li>${esc(u)}</li>`).join('');
-      }
+      ul.innerHTML = list.length === 0 ? '<li class="empty">暂无在线用户</li>' : list.map(u => '<li>' + esc(u) + '</li>').join('');
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {}
 }
 
-// 房间列表
 async function loadRooms() {
   try {
     const data = await api('GET', '/rooms');
     if (data.code === 0) {
       const list = data.data || [];
       const ul = document.getElementById('rooms');
-      if (list.length === 0) {
-        ul.innerHTML = '<li class="empty">暂无房间</li>';
-      } else {
-        ul.innerHTML = list.map(r => `
-          <li>
-            <span>${esc(r.Name)} <span class="badge">${r.Count} 人</span></span>
-            <span class="room-actions">
-              <button class="btn btn-primary btn-sm" onclick="viewMembers('${esc(r.Name)}')">成员</button>
-              <button class="btn btn-primary btn-sm" onclick="joinRoom('${esc(r.Name)}')">加入</button>
-              <button class="btn btn-danger btn-sm" onclick="leaveRoom('${esc(r.Name)}')">退出</button>
-            </span>
-          </li>`).join('');
-      }
+      ul.innerHTML = list.length === 0 ? '<li class="empty">暂无房间</li>' : list.map(r =>
+        '<li><span>' + esc(r.Name) + ' <span class="badge">' + r.Count + ' 人</span></span>' +
+        '<span class="room-actions">' +
+        '<button class="btn btn-primary btn-sm" onclick="viewMembers(\'' + esc(r.Name) + '\')">成员</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="joinRoom(\'' + esc(r.Name) + '\')">加入</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="leaveRoom(\'' + esc(r.Name) + '\')">退出</button>' +
+        '</span></li>').join('');
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {}
 }
 
-// 查看房间成员
 async function viewMembers(room) {
   try {
     const data = await api('GET', '/rooms/' + room + '/members');
     const panel = document.getElementById('memberPanel');
-    const title = document.getElementById('memberPanelTitle');
     const ul = document.getElementById('roomMembers');
     panel.style.display = 'block';
-    title.textContent = '房间 ' + room + ' 的成员';
-    if (data.code === 0 && data.data.length > 0) {
-      ul.innerHTML = data.data.map(m => `<li>${esc(m)}</li>`).join('');
-    } else {
-      ul.innerHTML = '<li class="empty">暂无成员</li>';
-    }
-  } catch (e) { toast('查询成员失败', 'error'); }
+    document.getElementById('memberPanelTitle').textContent = '房间 ' + room + ' 的成员';
+    ul.innerHTML = (data.code === 0 && data.data && data.data.length > 0) ? data.data.map(m => '<li>' + esc(m) + '</li>').join('') : '<li class="empty">暂无成员</li>';
+  } catch (e) {}
 }
 
-// 我的房间
 async function loadMyRooms() {
-  const u = user();
-  if (!u) {
-    document.getElementById('myRooms').innerHTML = '<li class="empty">请先设置用户名</li>';
-    return;
-  }
+  const name = localStorage.getItem('im_username');
+  if (!name) return;
   try {
-    const data = await api('GET', '/users/' + u + '/rooms');
+    const data = await api('GET', '/users/' + name + '/rooms');
     const ul = document.getElementById('myRooms');
-    if (data.code === 0 && data.data.length > 0) {
-      ul.innerHTML = data.data.map(r => `<li>${esc(r)}</li>`).join('');
-    } else {
-      ul.innerHTML = '<li class="empty">未加入任何房间</li>';
-    }
-  } catch (e) { /* ignore */ }
+    ul.innerHTML = (data.code === 0 && data.data && data.data.length > 0) ? data.data.map(r => '<li>' + esc(r) + '</li>').join('') : '<li class="empty">未加入任何房间</li>';
+  } catch (e) {}
 }
 
-// 创建房间
 async function createRoom() {
-  const u = user();
   const name = document.getElementById('newRoomName').value.trim();
-  if (!u) return toast('请先输入用户名', 'error');
   if (!name) return toast('请输入房间名', 'error');
-  const data = await api('POST', '/rooms', { name, user: u });
-  if (data.code === 0) {
-    toast('房间 ' + name + ' 创建成功', 'success');
-    document.getElementById('newRoomName').value = '';
-    refresh();
-  } else {
-    toast(data.msg || '创建失败', 'error');
-  }
+  const username = localStorage.getItem('im_username');
+  const data = await api('POST', '/rooms', { name, user: username });
+  if (data.code === 0) { toast('创建成功', 'success'); document.getElementById('newRoomName').value = ''; refresh(); }
+  else toast(data.msg || '创建失败', 'error');
 }
 
-// 加入房间
 async function joinRoom(room) {
-  const u = user();
-  if (!u) return toast('请先输入用户名', 'error');
-  const data = await api('POST', '/rooms/' + room + '/members/' + u);
-  if (data.code === 0) {
-    toast('加入成功', 'success');
-    refresh();
-    viewMembers(room);
-  } else {
-    toast(data.msg || '加入失败', 'error');
-  }
+  const user = localStorage.getItem('im_username');
+  const data = await api('POST', '/rooms/' + room + '/members/' + user);
+  if (data.code === 0) { toast('加入成功', 'success'); refresh(); viewMembers(room); }
+  else toast(data.msg || '加入失败', 'error');
 }
 
-// 退出房间
 async function leaveRoom(room) {
-  const u = user();
-  if (!u) return toast('请先输入用户名', 'error');
-  const data = await api('DELETE', '/rooms/' + room + '/members/' + u);
-  if (data.code === 0) {
-    toast('已退出', 'success');
-    refresh();
-  } else {
-    toast(data.msg || '退出失败', 'error');
-  }
-}
-
-// 改名
-async function renameUser() {
-  const old = document.getElementById('currentUser').value.trim();
-  if (!old) return toast('请输入当前用户名', 'error');
-  const newName = prompt('新用户名：', old);
-  if (!newName || newName === old) return;
-  const data = await api('PUT', '/users/' + old, { name: newName });
-  if (data.code === 0) {
-    document.getElementById('currentUser').value = newName;
-    localStorage.setItem('im_username', newName);
-    toast('改名成功', 'success');
-    refresh();
-  } else {
-    toast(data.msg || '改名失败', 'error');
-  }
+  const user = localStorage.getItem('im_username');
+  const data = await api('DELETE', '/rooms/' + room + '/members/' + user);
+  if (data.code === 0) { toast('已退出', 'success'); refresh(); }
+  else toast(data.msg || '退出失败', 'error');
 }
 
 function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// 健康检查
-async function ping() {
-  try {
-    const data = await api('GET', '/ping');
-    document.getElementById('serverStatus').textContent = data.code === 0 ? '服务正常' : '服务异常';
-    document.getElementById('serverStatus').style.color = data.code === 0 ? '#a5b4fc' : '#fca5a5';
-  } catch (e) {
-    document.getElementById('serverStatus').textContent = '无法连接';
-    document.getElementById('serverStatus').style.color = '#fca5a5';
-  }
-}
-
 // 初始化
-function init() {
-  const saved = localStorage.getItem('im_username');
-  if (saved) document.getElementById('currentUser').value = saved;
-  document.getElementById('currentUser').addEventListener('change', function() {
-    if (this.value.trim()) localStorage.setItem('im_username', this.value.trim());
-  });
-  ping();
-  refresh();
-  setInterval(refresh, 5000);
-  setInterval(ping, 30000);
-}
-
-init();
+(function init() {
+  const token = localStorage.getItem('im_token');
+  const username = localStorage.getItem('im_username');
+  if (token && username) {
+    showDashboard({ Nickname: username });
+  }
+})();
 </script>
 </body>
 </html>

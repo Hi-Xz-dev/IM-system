@@ -9,7 +9,7 @@ import (
 func (s *Server) Online(user *user.User) {
 	//用户上线，将用户加入OnlineUsers
 	s.mapLock.Lock()
-	s.OnlineUsers[user.Name] = user
+	s.OnlineUsers[user.Nickname] = user
 	s.mapLock.Unlock()
 	//广播当前用户上线信息
 	s.BroadCast(user, "上线")
@@ -33,7 +33,7 @@ func (s *Server) Offline(usr *user.User) {
 	for _, roomName := range roomNames {
 		s.leaveRoomUnsafe(usr, roomName)
 	}
-	delete(s.OnlineUsers, usr.Name)
+	delete(s.OnlineUsers, usr.Nickname)
 	s.mapLock.Unlock()
 	usr.Close()
 	s.BroadCast(usr, "已下线")
@@ -63,7 +63,7 @@ func (s *Server) PrivateChat(sender *user.User, targetName string, content strin
 		sender.SendMsg("用户不存在，请重试")
 		return
 	}
-	privateMsg := "[私聊][" + sender.Name + " -> " + targetName + "] " + content
+	privateMsg := "[私聊][" + sender.Nickname + " -> " + targetName + "] " + content
 	targetUser.SendMsg(privateMsg)
 	sender.SendMsg("[系统] 私聊发送成功 -> " + targetName)
 
@@ -77,7 +77,7 @@ func (s *Server) Rename(usr *user.User, newName string) {
 		usr.SendMsg("用户名已存在，请重试")
 		return
 	}
-	oldName := usr.Name
+	oldName := usr.Nickname
 	s.renameUserUnsafe(usr, oldName, newName)
 	//snalshot
 	users := make([]*user.User, 0, len(s.OnlineUsers))
@@ -114,7 +114,7 @@ func (s *Server) GetOnlineUsers() []string {
 	defer s.mapLock.RUnlock()
 	users := make([]string, 0, len(s.OnlineUsers))
 	for _, cli := range s.OnlineUsers {
-		users = append(users, cli.Name)
+		users = append(users, cli.Nickname)
 	}
 
 	return users
@@ -133,7 +133,7 @@ func (s *Server) renameUserRoomsUnsafe(usr *user.User, oldName, newName string){
 }
 func (s *Server) renameUserUnsafe(usr *user.User, oldName, newName string){
 	delete(s.OnlineUsers, oldName)
-	usr.Name = newName
+	usr.Nickname = newName
 	s.OnlineUsers[newName] = usr
 	s.renameUserRoomsUnsafe(usr, oldName, newName)
 	

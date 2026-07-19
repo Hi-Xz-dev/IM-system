@@ -8,10 +8,8 @@ import (
 	"strings"
 )
 //持续读取当前TCP客户端发来的信息，交给业务层处理
-func (s *Server) readLoop(conn net.Conn, usr *user.User, done chan<- struct{}) {
+func (s *Server) readLoop(conn net.Conn, scanner *bufio.Scanner, usr *user.User, done chan<- struct{}) {
 	defer close(done)
-	//处理沾包半包
-	scanner := bufio.NewScanner(conn)
 
 	for scanner.Scan() {//返回bool
 		usr.UpdateActiveTime()
@@ -29,7 +27,7 @@ func (s *Server) readLoop(conn net.Conn, usr *user.User, done chan<- struct{}) {
 	if err := scanner.Err(); err != nil {
 	logger.Log.Error(
 		"connection read failed",
-		"user", usr.Name,
+		"user", usr.Nickname,
 		"addr", usr.Addr,
 		"error", err,
 	)

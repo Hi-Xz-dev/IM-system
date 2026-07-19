@@ -7,10 +7,11 @@ import (
 )
 
 type User struct {
-	Name string      //昵称
-	Addr string      //地址
-	C    chan string //消息队列
-	conn net.Conn    //TCP连接
+	Nickname string      //昵称
+	ID       int64       //数据库用户ID
+	Addr     string      //TCP地址
+	C        chan string //消息队列
+	conn     net.Conn    //TCP连接
 
 	ActiveTime int64 //心跳
 
@@ -20,15 +21,16 @@ type User struct {
 }
 
 // 创建一个用户API
-func NewUser(conn net.Conn) *User {
+func NewUser(conn net.Conn, id int64, nickname string,) *User {
 	userAddr := conn.RemoteAddr().String()
 
 	u := &User{
-		Name:        userAddr,
+		Nickname:    nickname,
+		ID:          id,
 		Addr:        userAddr,
 		C:           make(chan string, 100),
 		conn:        conn,
-		ActiveTime:  time.Now().Unix(), //时间初始化
+		ActiveTime:  time.Now().Unix(),
 		JoinedRooms: make(map[string]struct{}),
 	}
 	return u
@@ -50,7 +52,7 @@ func (u *User) SendMsg(msg string) {
 	select {
 	case u.C <- msg:
 	default:
-		fmt.Println("[WARN] user channel full, drop message:", u.Name)
+		fmt.Println("[WARN] user channel full, drop message:", u.Nickname)
 	}
 }
 

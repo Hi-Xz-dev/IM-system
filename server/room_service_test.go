@@ -7,10 +7,10 @@ import (
 )
 
 func TestRoomJoinLeave(t *testing.T) {
-	s := NewServer("127.0.0.1", 8080)
+	s := NewServer("127.0.0.1", 8080, nil)
 
 	u := &user.User{
-		Name:        "Tom",
+		Nickname:        "Tom",
 		Addr:        "127.0.0.1:10001",
 		C:           make(chan string, 100),
 		JoinedRooms: make(map[string]struct{}),

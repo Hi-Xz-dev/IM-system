@@ -16,6 +16,7 @@ const (
 	CmdMembers CommandType = "members"
 	CmdHelp    CommandType = "help"
 	CmdPublic  CommandType = "public"
+	CmdAuth    CommandType = "auth"
 )
 
 type Command struct {

@@ -6,13 +6,14 @@ import (
 )
 
 // 用户上线业务
-func (s *Server) Online(user *user.User) {
+func (s *Server) Online(usr *user.User) {
 	//用户上线，将用户加入OnlineUsers
 	s.mapLock.Lock()
-	s.OnlineUsers[user.Nickname] = user
+	s.OnlineUsers[usr.ID] =
+		append(s.OnlineUsers[usr.ID], usr)
 	s.mapLock.Unlock()
 	//广播当前用户上线信息
-	s.BroadCast(user, "上线")
+	s.BroadCast(usr, "上线")
 }
 
 // 用户下线业务
@@ -24,7 +25,7 @@ func (s *Server) Offline(usr *user.User) {
 		return
 	}
 	usr.IsClosed = true
-	//复制用户加入的全部房间
+
 	roomNames := make([]string, 0, len(usr.JoinedRooms))
 	for roomName := range usr.JoinedRooms {
 		roomNames = append(roomNames, roomName)
@@ -33,9 +34,27 @@ func (s *Server) Offline(usr *user.User) {
 	for _, roomName := range roomNames {
 		s.leaveRoomUnsafe(usr, roomName)
 	}
-	delete(s.OnlineUsers, usr.Nickname)
+	//删除当前链接
+	users := s.OnlineUsers[usr.ID]
+
+	for i, u := range users {
+		if u == usr {
+			//删除元素
+			users = append(users[:i], users[i+1:]...)
+			break
+		}
+	}
+
+	if len(users) == 0 {
+		delete(s.OnlineUsers, usr.ID)
+	} else {
+		s.OnlineUsers[usr.ID] = users
+	}
+
 	s.mapLock.Unlock()
+
 	usr.Close()
+
 	s.BroadCast(usr, "已下线")
 }
 
@@ -43,7 +62,7 @@ func (s *Server) Offline(usr *user.User) {
 func (s *Server) Where(usr *user.User) {
 	s.mapLock.RLock()
 	rooms := make([]string, 0, len(usr.JoinedRooms))
-	for roomName := range usr.JoinedRooms{
+	for roomName := range usr.JoinedRooms {
 		rooms = append(rooms, roomName)
 	}
 	s.mapLock.RUnlock()
@@ -51,48 +70,82 @@ func (s *Server) Where(usr *user.User) {
 		usr.SendMsg("当前未加入任何房间")
 		return
 	}
-	usr.SendMsg("已加入房间：" + strings.Join(rooms,","))
+	usr.SendMsg("已加入房间：" + strings.Join(rooms, ","))
 }
 
 // 私聊功能
-func (s *Server) PrivateChat(sender *user.User, targetName string, content string) {
+func (s *Server) PrivateChat(sender *user.User, targetID int64, content string) {
 	s.mapLock.RLock()
-	targetUser, ok := s.OnlineUsers[targetName]
+	targetSessions, ok := s.OnlineUsers[targetID]
 	s.mapLock.RUnlock()
-	if !ok {
+	if !ok || len(targetSessions) == 0 {
 		sender.SendMsg("用户不存在，请重试")
 		return
 	}
-	privateMsg := "[私聊][" + sender.Nickname + " -> " + targetName + "] " + content
-	targetUser.SendMsg(privateMsg)
-	sender.SendMsg("[系统] 私聊发送成功 -> " + targetName)
-
+	targetNick := targetSessions[0].Nickname
+	privateMsg := "[私聊][" + sender.Nickname + " -> " + targetNick + "] " + content
+	for _, tu := range targetSessions {
+		tu.SendMsg(privateMsg)
+	}
+	sender.SendMsg("[系统] 私聊发送成功 -> " + targetNick)
 }
 
 // 用户改名业务
 func (s *Server) Rename(usr *user.User, newName string) {
 	s.mapLock.Lock()
-	if _, ok := s.OnlineUsers[newName]; ok {
+	if s.nameExistsUnsafe(newName) {
 		s.mapLock.Unlock()
+
 		usr.SendMsg("用户名已存在，请重试")
 		return
 	}
+
 	oldName := usr.Nickname
-	s.renameUserUnsafe(usr, oldName, newName)
+
+	users, ok := s.OnlineUsers[usr.ID]
+
+	if !ok {
+		s.mapLock.Unlock()
+		return
+	}
+
+	for _, u := range users {
+		u.Nickname = newName
+	}
+
 	//snalshot
-	users := make([]*user.User, 0, len(s.OnlineUsers))
-	for _, u := range s.OnlineUsers {
-		users = append(users, u)
+	allusers := make([]*user.User, 0)
+
+	for _, userList := range s.OnlineUsers {
+		for _, u := range userList {
+			allusers = append(allusers, u)
+		}
 	}
 	s.mapLock.Unlock()
 	msg := "[系统] " + oldName + " 改名为 " + newName + "\n"
-	s.RoomBroadcast(users, msg)
+	s.RoomBroadcast(allusers, msg)
+}
+
+// 检查重名
+func (s *Server) nameExistsUnsafe(name string) bool {
+
+	for _, users := range s.OnlineUsers {
+
+		for _, usr := range users {
+
+			if usr.Nickname == name {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // Help
 func (s *Server) Help(user *user.User) {
 	user.SendMsg(
-`======= 命令列表 =======
+		`======= 命令列表 =======
 who                   查看在线用户
 rename|名字           修改昵称
 to|用户|消息          私聊
@@ -109,67 +162,72 @@ quit                  退出系统
 }
 
 // 查找全部在线用户
-func (s *Server) GetOnlineUsers() []string {
+func (s *Server) GetOnlineUsers() []OnlineUser {
 	s.mapLock.RLock()
 	defer s.mapLock.RUnlock()
-	users := make([]string, 0, len(s.OnlineUsers))
-	for _, cli := range s.OnlineUsers {
-		users = append(users, cli.Nickname)
+	seen := make(map[int64]string)
+	for id, clients := range s.OnlineUsers {
+		for _, cli := range clients {
+			seen[id] = cli.Nickname
+		}
 	}
-
+	users := make([]OnlineUser, 0, len(seen))
+	for id, nick := range seen {
+		users = append(users, OnlineUser{ID: id, Nickname: nick})
+	}
 	return users
 }
-//===============Unsafe================
-//同步更新房间成员列表
-func (s *Server) renameUserRoomsUnsafe(usr *user.User, oldName, newName string){
-	for roomName := range usr.JoinedRooms{
-		r, ok := s.Rooms[roomName]
-		if !ok{
-			continue
-		}
-		delete(r.Users, oldName)
-		r.Users[newName] = usr
-	}
-}
-func (s *Server) renameUserUnsafe(usr *user.User, oldName, newName string){
-	delete(s.OnlineUsers, oldName)
-	usr.Nickname = newName
-	s.OnlineUsers[newName] = usr
-	s.renameUserRoomsUnsafe(usr, oldName, newName)
-	
-}
 
-//===============HTTP==================
-//用户改名
-func (s *Server) RenameByName(oldName, newName string)(string, bool){
+// ===============HTTP==================
+// 用户改名
+func (s *Server) RenameH(userID int64, newName string) (string, bool) {
 	s.mapLock.Lock()
 	defer s.mapLock.Unlock()
-	usr, ok := s.OnlineUsers[oldName]
-	if !ok{
+	users, ok := s.OnlineUsers[userID]
+	if !ok {
 		return "未找到用户", false
 	}
-	if _, ok := s.OnlineUsers[newName];ok{
-		return "用户名已存在", false
+	for _, us := range s.OnlineUsers {
+
+		for _, u := range us {
+
+			if u.Nickname == newName {
+
+				return "用户名已存在", false
+			}
+		}
+
 	}
-	s.renameUserUnsafe(usr, oldName, newName)
-	
+
+	for _, u := range users {
+
+		u.Nickname = newName
+
+	}
+
 	return "修改用户名成功", true
 }
-//用户位置
-func (s *Server) GetUserRooms(userName string) ([]string, bool){
-	s.mapLock.Lock()
-	defer s.mapLock.Unlock()
-	u, ok := s.OnlineUsers[userName]
-	if !ok{
+
+// 用户位置
+func (s *Server) GetUserRoomsH(userID int64) ([]string, bool) {
+	s.mapLock.RLock()
+	defer s.mapLock.RUnlock()
+	users, ok := s.OnlineUsers[userID]
+	if !ok {
 		return nil, false
 	}
-	rooms := make([]string, 0, len(u.JoinedRooms))
-	for roomName := range u.JoinedRooms{
-		rooms = append(rooms, roomName)
-	}
-	if len(rooms) == 0 {
+
+	if len(users) == 0 {
 		return []string{}, true
 	}
-	return rooms, true	
-}
 
+	u := users[0]
+
+	rooms := make([]string, 0, len(u.JoinedRooms))
+
+	for roomName := range u.JoinedRooms {
+
+		rooms = append(rooms, roomName)
+	}
+	return rooms, true
+}

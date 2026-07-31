@@ -10,7 +10,8 @@ func TestRoomJoinLeave(t *testing.T) {
 	s := NewServer("127.0.0.1", 8080, nil)
 
 	u := &user.User{
-		Nickname:        "Tom",
+		ID:          1,
+		Nickname:    "Tom",
 		Addr:        "127.0.0.1:10001",
 		C:           make(chan string, 100),
 		JoinedRooms: make(map[string]struct{}),
@@ -28,8 +29,22 @@ func TestRoomJoinLeave(t *testing.T) {
 		t.Fatalf("expected room golang exists")
 	}
 	// 房间成员应该包含 Tom
-	if _, ok := r.Users["Tom"]; !ok {
+
+	users, ok := r.Users[u.ID]
+
+
+	if !ok {
 		t.Fatalf("expected Tom in room")
+	}
+
+	if len(users) != 1 {
+		t.Fatalf("expected 1 user in room, got %d",len(users),)
+	}
+
+	if users[0] != u {
+		t.Fatalf(
+			"expected same user",
+		)
 	}
 	s.LeaveRoom(u, "golang")
 

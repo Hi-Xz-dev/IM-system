@@ -1,12 +1,12 @@
 package httpserver
 
 import (
+	"IM-system/internal/auth"
 	"IM-system/internal/service"
 	"IM-system/server"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
-	"IM-system/internal/auth"
 )
 
 type Handler struct {
@@ -17,7 +17,7 @@ type Handler struct {
 
 // 构造函数 把 main.go 里的 s 注入到 Handler 里面
 // 这一步叫：依赖注入 Dependency Injection
-func NewHandler(s *server.Server,authService *auth.Service,) *Handler {
+func NewHandler(s *server.Server, authService *auth.Service) *Handler {
 	return &Handler{
 		server:      s,
 		roomService: service.NewRoomService(s),
@@ -55,15 +55,19 @@ func (h *Handler) Members(c *gin.Context) {
 
 // 加入房间
 func (h *Handler) Join(c *gin.Context) {
-	room, ok := getRoomParam(c)
+	roomName, ok := getRoomParam(c)
 	if !ok {
 		return
 	}
-	user, ok := getUserParam(c)
+
+	userID, ok := getUserID(c)
+
 	if !ok {
+		c.JSON(http.StatusUnauthorized, Fail("not login"))
 		return
 	}
-	msg, ok := h.server.JoinRoomByName(user, room)
+
+	msg, ok := h.server.JoinRoomH(userID, roomName)
 	if !ok {
 		c.JSON(http.StatusNotFound, Fail(msg))
 		return
@@ -73,15 +77,19 @@ func (h *Handler) Join(c *gin.Context) {
 
 // 离开房间
 func (h *Handler) Leave(c *gin.Context) {
-	room, ok := getRoomParam(c)
+	roomName, ok := getRoomParam(c)
 	if !ok {
 		return
 	}
-	user, ok := getUserParam(c)
+
+	userID, ok := getUserID(c)
+
 	if !ok {
+		c.JSON(http.StatusUnauthorized, Fail("not login"))
 		return
 	}
-	msg, ok := h.server.LeaveRoomByName(user, room)
+
+	msg, ok := h.server.LeaveRoomH(userID, roomName)
 	if !ok {
 		c.JSON(http.StatusNotFound, Fail(msg))
 		return
@@ -96,10 +104,14 @@ type RenameUserRequest struct {
 
 // 用户改名
 func (h *Handler) Rename(c *gin.Context) {
-	oldName, ok := getUserParam(c)
+
+	userID, ok := getUserID(c)
+
 	if !ok {
+		c.JSON(http.StatusUnauthorized, Fail("not login"))
 		return
 	}
+
 	var req RenameUserRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -111,19 +123,25 @@ func (h *Handler) Rename(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, Fail("invalid new user name"))
 		return
 	}
-	msg, success := h.server.RenameByName(oldName, req.Name)
+	msg, success := h.server.RenameH(userID, req.Name)
 	if !success {
 		c.JSON(http.StatusNotFound, Fail(msg))
+		return
 	}
 	c.JSON(http.StatusOK, OK(msg))
 }
 
 func (h *Handler) UserRooms(c *gin.Context) {
-	userName, ok := getUserParam(c)
+
+	userID, ok := getUserID(c)
+
 	if !ok {
+		c.JSON(http.StatusUnauthorized, Fail("not login"))
 		return
 	}
-	rooms, found := h.server.GetUserRooms(userName)
+
+	rooms, found := h.server.GetUserRoomsH(userID)
+
 	if !found {
 		c.JSON(http.StatusNotFound, Fail("user not found"))
 		return
@@ -133,7 +151,6 @@ func (h *Handler) UserRooms(c *gin.Context) {
 
 type CreateRoomRequest struct {
 	Name string `json:"name"`
-	User string `json:"user"`
 }
 
 func (h *Handler) CreateRoom(c *gin.Context) {
@@ -144,17 +161,23 @@ func (h *Handler) CreateRoom(c *gin.Context) {
 		return
 	}
 	req.Name = strings.TrimSpace(req.Name)
-	req.User = strings.TrimSpace(req.User)
 
-	if req.User == "" {
-		c.JSON(http.StatusBadRequest, Fail("invalid user name"))
-		return
-	}
 	if req.Name == "" {
 		c.JSON(http.StatusBadRequest, Fail("invalid room name"))
 		return
 	}
-	msg, ok := h.server.CreateRoomByName(req.User, req.Name)
+
+	userIDValue, exists := c.Get("user_id")
+
+	if !exists {
+		c.JSON(http.StatusUnauthorized, Fail("not login"))
+		return
+	}
+
+	userID := userIDValue.(int64)
+
+	msg, ok := h.server.CreateRoomH(userID, req.Name)
+
 	if !ok {
 		c.JSON(http.StatusConflict, Fail(msg))
 		return

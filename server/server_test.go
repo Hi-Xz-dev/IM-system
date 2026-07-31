@@ -10,44 +10,92 @@ func TestOnlineOffline(t *testing.T) {
 	s := NewServer("127.0.0.1", 8080, nil)
 
 	u := &user.User{
+		ID:       1,
 		Nickname: "Tom",
-		Addr: "127.0.0.1:10001",
-		C:    make(chan string, 100),
+		Addr:     "127.0.0.1:10001",
+		C:        make(chan string, 100),
 	}
 
 	s.Online(u)
 
-	if _, ok := s.OnlineUsers["Tom"]; !ok {
-		t.Fatalf("expected user Tom online")
+	users, ok := s.OnlineUsers[u.ID]
+
+	if !ok {
+		t.Fatalf("expected user online")
 	}
-	//测试过程中 发现业务逻辑和网络资源释放有一点耦合
+
+	if len(users) != 1 {
+		t.Fatalf(
+			"expected 1 session, got %d",
+			len(users),
+		)
+	}
+
+	if users[0] != u {
+		t.Fatalf("expected same user")
+	}
+
 	s.Offline(u)
 
-	if _, ok := s.OnlineUsers["Tom"]; ok {
-		t.Fatalf("expected user Tom offline")
+	// 用户应该不存在
+	users, ok = s.OnlineUsers[u.ID]
+
+	if ok && len(users) != 0 {
+		t.Fatalf(
+			"expected user offline",
+		)
+	}
+
+	if !u.IsClosed {
+		t.Fatalf(
+			"expected IsClosed=true",
+		)
 	}
 }
 func TestOfflineDoubleCall(t *testing.T) {
 	s := NewServer("127.0.0.1", 8080, nil)
 
 	u := &user.User{
-		Nickname: "Tom",
-		Addr: "127.0.0.1:10001",
-		C:    make(chan string, 100),
+		ID:          1,
+		Nickname:    "Tom",
+		Addr:        "127.0.0.1:10001",
+		C:           make(chan string, 100),
 		JoinedRooms: make(map[string]struct{}),
 	}
 
 	s.Online(u)
-	//Offline 调用两次，程序不崩，最终用户仍然是下线状态。
-	//但它不能完全证明“第二次没有执行完整下线逻辑”。
+
 	s.Offline(u)
-	if _, ok := s.OnlineUsers["Tom"]; ok {
-		t.Fatalf("expected user Tom offline")
+
+	users, ok := s.OnlineUsers[u.ID]
+
+	if ok && len(users) != 0 {
+		t.Fatalf(
+			"expected user offline",
+		)
 	}
+
 	if !u.IsClosed {
-		t.Fatalf("expected IsClosed=true")
+		t.Fatalf(
+			"expected IsClosed=true",
+		)
 	}
-	// 这里检查：
-	// 1. OnlineUsers 里面没有 Tom
-	// 2. u.IsClosed 是 true
+
+	// 第二次调用
+	s.Offline(u)
+
+	// 再检查状态
+	users, ok = s.OnlineUsers[u.ID]
+
+	if ok && len(users) != 0 {
+		t.Fatalf(
+			"expected user still offline",
+		)
+	}
+
+	if !u.IsClosed {
+		t.Fatalf(
+			"expected IsClosed=true after second call",
+		)
+	}
 }

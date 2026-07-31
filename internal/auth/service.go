@@ -3,11 +3,14 @@ package auth
 import (
 	"IM-system/internal/model"
 	"IM-system/internal/repository"
-	"context"
+	
 	"database/sql"
-	"errors"
-	"github.com/go-sql-driver/mysql"
+	"context"
 	"strings"
+	"errors"
+	
+
+	"github.com/go-sql-driver/mysql"
 )
 
 type Service struct {
@@ -123,7 +126,9 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, er
 }
 
 func (s *Service) Authenticate(ctx context.Context, token string)(*model.User, error){
+
 	userID, err := s.jwtService.ParseToken(token)
+	
 	if err != nil{
 		return nil, err
 	}
@@ -132,5 +137,6 @@ func (s *Service) Authenticate(ctx context.Context, token string)(*model.User, e
 	if err != nil{
 		return nil, err
 	}
+
 	return user, nil
 }

@@ -1,20 +1,25 @@
 package server
 
 import (
+	"IM-system/internal/connection"
 	"IM-system/user"
-	"bufio"
-	"IM-system/internal/logger"
-	"net"
+
 	"strings"
 )
-//持续读取当前TCP客户端发来的信息，交给业务层处理
-func (s *Server) readLoop(conn net.Conn, scanner *bufio.Scanner, usr *user.User, done chan<- struct{}) {
-	defer close(done)
 
-	for scanner.Scan() {//返回bool
+func (s *Server) ServerReader(reader connection.Reader, usr *user.User) {
+	for {
+		msg, err := reader.Read()
+
+		if err != nil {
+			s.Offline(usr)
+			return
+		}
+
 		usr.UpdateActiveTime()
 		//提取纯净信息
-		msg := strings.TrimSpace(scanner.Text())
+		msg = strings.TrimSpace(msg)
+
 		if msg == "" {
 			continue
 		}
@@ -24,13 +29,4 @@ func (s *Server) readLoop(conn net.Conn, scanner *bufio.Scanner, usr *user.User,
 		}
 		s.DoMessage(usr, msg)
 	}
-	if err := scanner.Err(); err != nil {
-	logger.Log.Error(
-		"connection read failed",
-		"user", usr.Nickname,
-		"addr", usr.Addr,
-		"error", err,
-	)
-}
-	s.Offline(usr)
 }

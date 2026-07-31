@@ -13,6 +13,8 @@ import (
 	"IM-system/internal/logger"
 	"IM-system/internal/repository"
 	"IM-system/server"
+	"IM-system/gateway/ws"
+	"IM-system/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,6 +38,8 @@ func main() {
 
 	authService := auth.NewService(userRepo, jwtService)
 
+	authMiddleware := middleware.NewAuthMiddleware(jwtService)
+
 	s := server.NewServer(cfg.TCP.Host, cfg.TCP.Port, authService)
 	logger.Log.Info(
 		"tcp server starting",
@@ -48,11 +52,13 @@ func main() {
 	// gin服务
 	//r := gin.Default()
 	r := gin.New()
-	r.Use(gin.Recovery())
+	
 	r.Use(httpserver.Recovery())
 	r.Use(httpserver.RequestLogger())
 
-	httpserver.RegisterRoutes(r, s, authService) //依赖传递
+	gateway := ws.NewGateway(s, authService)
+
+	httpserver.RegisterRoutes(r, s, authService, gateway, authMiddleware)
 	//静态资源
 	r.Static("/web", "./web") //浏览器访问：/web/xxxx去项目中的：./web/xxxx找文件
 	HttpAddr := fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port)

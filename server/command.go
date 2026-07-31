@@ -51,12 +51,18 @@ func (s *Server) DoMessage(usr *user.User, msg string) {
 // 拆handler-XX函数
 func (s *Server) handlerWho(usr *user.User) {
 	s.mapLock.RLock()
-	users := make([]*user.User, 0, len(s.OnlineUsers))
-	for _, cli := range s.OnlineUsers {
-		users = append(users, cli)
+	users := make(map[int64]*user.User)
+
+	for _, clients := range s.OnlineUsers {
+
+		for _, cli := range clients {
+
+			users[cli.ID] = cli
+		}
 	}
 
 	s.mapLock.RUnlock()
+
 	for _, cli := range users {
 		onlineMsg := "[" + cli.Addr + "]" + cli.Nickname + ":" + "在线\n"
 		usr.SendMsg(onlineMsg)
@@ -70,13 +76,18 @@ func (s *Server) handlerRename(usr *user.User, args []string) {
 
 	s.Rename(usr, args[0])
 }
+
 func (s *Server) handlerPrivateChat(usr *user.User, args []string) {
 	if len(args) != 2 {
-		usr.SendMsg("[系统] 用法: to|用户名|消息\n")
+		usr.SendMsg("[系统] 用法: to|用户ID|消息\n")
 		return
 	}
-
-	s.PrivateChat(usr, args[0], args[1])
+	userID, err := protocol.ParseUserID(args[0])
+	if err != nil {
+		usr.SendMsg("[系统] 用户ID错误\n")
+		return
+	}
+	s.PrivateChat(usr, userID, args[1])
 }
 
 func (s *Server) handlerCreate(usr *user.User, args []string) {
@@ -95,7 +106,8 @@ func (s *Server) handlerJoin(usr *user.User, args []string) {
 
 	s.JoinRoom(usr, args[0])
 }
-//房间聊天
+
+// 房间聊天
 func (s *Server) handlerRoomchat(usr *user.User, args []string) {
 	if len(args) != 2 {
 		usr.SendMsg("[系统] 用法: room|房间名|消息内容\n")
@@ -104,9 +116,10 @@ func (s *Server) handlerRoomchat(usr *user.User, args []string) {
 
 	s.RoomChat(usr, args[0], args[1])
 }
-//离开房间
-func (s *Server) handlerLeaveRoom(usr *user.User, args []string){
-	if len(args) != 1{
+
+// 离开房间
+func (s *Server) handlerLeaveRoom(usr *user.User, args []string) {
+	if len(args) != 1 {
 		usr.SendMsg("[系统] 用法: leave|房间名\n")
 		return
 	}
@@ -114,19 +127,11 @@ func (s *Server) handlerLeaveRoom(usr *user.User, args []string){
 	s.LeaveRoom(usr, args[0])
 }
 
-//房间成员
-func (s *Server) handlerMenbers(usr *user.User, args []string){
+// 房间成员
+func (s *Server) handlerMenbers(usr *user.User, args []string) {
 	if len(args) != 1 {
 		usr.SendMsg("[系统] 用法: members|房间名\n")
 		return
 	}
 	s.Members(usr, args[0])
 }
-
-
-
-
-
-
-
-

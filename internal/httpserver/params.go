@@ -13,11 +13,21 @@ func getRoomParam(c *gin.Context) (string, bool) {
 	}
 	return room, true
 }
-func getUserParam(c *gin.Context)(string, bool) {
-	user := c.Param("user")
-	if user == "" {
-		c.JSON(http.StatusBadRequest, Fail("invalid user parameter"))
-		return "", false
+
+func getUserID(c *gin.Context)(int64, bool) {
+
+	value, exists := c.Get("user_id")
+
+	if !exists {
+		return 0, false
 	}
-	return user, true
+
+	userID, ok := value.(int64)
+	
+	if !ok {
+		return 0, false
+	}	
+
+	return userID, true
+
 }

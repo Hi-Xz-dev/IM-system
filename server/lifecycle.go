@@ -44,16 +44,22 @@ func (s *Server) Start() {
 		go s.Handler(conn) //goroutine
 	}
 }
-
+//关闭全部链接
 func (s *Server) Shutdown() {
-	s.IsShutdown = true
+	s.IsShutdown = true      
 	if s.listener != nil {
 		_ = s.listener.Close()
 	}
 	s.mapLock.RLock()
-	users := make([]*user.User, 0, len(s.OnlineUsers))
-	for _, u := range s.OnlineUsers {
-		users = append(users, u)
+	
+	users := make([]*user.User, 0, )
+	for _, clients := range s.OnlineUsers {
+
+		for _, usr := range clients {
+
+			users = append(users, usr)
+
+		}
 	}
 	s.mapLock.RUnlock()
 	for _, u := range users {

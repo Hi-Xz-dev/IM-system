@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"IM-system/internal/auth"
-	"IM-system/internal/httpserver"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
@@ -25,35 +24,30 @@ func NewAuthMiddleware(jwtService *auth.JWTService) *AuthMiddleware {
 
 func (m *AuthMiddleware) Handler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authorization := c.GetHeader("authorizationHeader")
+		authorization := c.GetHeader(authorizationHeader)
 
 		if authorization == "" {
-			//终止请求，并返回 HTTP 状态码和 JSON 响应
-			c.AbortWithStatusJSON(http.StatusUnauthorized,
-				httpserver.Fail("missing authorization header"),
-			)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code": -1, "msg": "missing authorization header",
+			})
 			return
 		}
 
 		if !strings.HasPrefix(authorization, bearerPrefix) {
-			c.AbortWithStatusJSON(
-				http.StatusUnauthorized,
-				httpserver.Fail("invalid authorization format"),
-			)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code": -1, "msg": "invalid authorization format",
+			})
 			return
 		}
-		tokenString := strings.TrimPrefix(
-			authorization, bearerPrefix,
-		)
+		tokenString := strings.TrimPrefix(authorization, bearerPrefix)
 		userID, err := m.jwtService.ParseToken(tokenString)
-		if err != nil{
-			c.AbortWithStatusJSON(
-				http.StatusUnauthorized,
-				httpserver.Fail("invalid token"),
-			)
-			return 
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code": -1, "msg": "invalid token",
+			})
+			return
 		}
-		c.Set("userID", userID)
+		c.Set("user_id", userID)
 
 		c.Next()
 	}

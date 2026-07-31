@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"strconv"
 	"strings"
 
 	"IM-system/internal/domain"
@@ -44,4 +45,8 @@ func Parse(raw string) domain.Command {
 	default:
 		return domain.Command{Type: domain.CmdPublic, Args: args, Raw: raw}
 	}
+}
+
+func ParseUserID(arg string) (int64, error){
+	return strconv.ParseInt(arg, 10, 64)
 }

@@ -11,10 +11,14 @@ func (s *Server) ListenMessager() {
 		msg := <-s.Message
 		//将msg发送给全部的在线User
 		s.mapLock.RLock()
-		users := make([]*user.User, 0, len(s.OnlineUsers))
-		for _, cli := range s.OnlineUsers {
-			users = append(users, cli)
+		users := make([]*user.User, 0,)
+
+		for _, clients := range s.OnlineUsers {
+			for _,cli := range clients {
+				users = append(users, cli)
+			}
 		}
+
 		s.mapLock.RUnlock()
 		for _, cli := range users {
 			cli.SendMsg(msg)
@@ -23,8 +27,8 @@ func (s *Server) ListenMessager() {
 }
 
 // 广播消息方法
-func (s *Server) BroadCast(user *user.User, msg string) {
-	sendMsg := "[" + user.Addr + "]" + user.Nickname + ":" + msg
+func (s *Server) BroadCast(usr *user.User, msg string) {
+	sendMsg := "[" + usr.Addr + "]" + usr.Nickname + ":" + msg
 	s.Message <- sendMsg
 
 }

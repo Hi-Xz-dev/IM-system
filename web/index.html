@@ -1,301 +1,310 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Go IM System</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <style>
-  :root { --bg: #f0f2f5; --card: #fff; --border: #e0e0e0; --text: #333; --muted: #999; --primary: #4f46e5; --danger: #dc2626; --success: #16a34a; --radius: 10px; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-  .header { background: var(--primary); color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
-  .header h1 { font-size: 18px; }
-  .header .user-info { font-size: 13px; display: flex; align-items: center; gap: 12px; }
-  .btn { padding: 8px 16px; border: none; border-radius: var(--radius); font-size: 13px; cursor: pointer; font-weight: 500; }
-  .btn-primary { background: var(--primary); color: #fff; }
-  .btn-primary:hover { opacity: .9; }
-  .btn-danger { background: var(--danger); color: #fff; }
-  .btn-sm { padding: 5px 10px; font-size: 12px; }
-  .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+:root{--bg:#f0f2f5;--card:#fff;--border:#ddd;--text:#333;--muted:#999;--primary:#4f46e5;--danger:#dc2626;--success:#16a34a;--warn:#f59e0b;--r:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+.btn{padding:8px 16px;border:none;border-radius:var(--r);font-size:13px;cursor:pointer}
+.btn-p{background:var(--primary);color:#fff}.btn-p:hover{opacity:.9}
+.btn-s{padding:5px 10px;font-size:12px}.btn-o{background:#fff;border:1px solid var(--border)}
+.btn-o:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-d:hover{background:var(--danger)!important;color:#fff!important;border-color:var(--danger)!important}
 
-  /* 登录页 */
-  .auth-page { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 56px); }
-  .auth-card { background: var(--card); border-radius: var(--radius); padding: 40px 32px; width: 380px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
-  .auth-card h2 { text-align: center; margin-bottom: 8px; }
-  .auth-card .sub { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 24px; }
-  .auth-card label { font-size: 13px; display: block; margin-bottom: 4px; margin-top: 12px; color: #555; }
-  .auth-card input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
-  .auth-card input:focus { outline: none; border-color: var(--primary); }
-  .auth-card .btn { width: 100%; padding: 12px; margin-top: 20px; font-size: 15px; }
-  .auth-card .switch { text-align: center; margin-top: 16px; font-size: 13px; color: var(--muted); }
-  .auth-card .switch a { color: var(--primary); cursor: pointer; }
+/* auth */
+.auth{display:flex;justify-content:center;align-items:center;height:100vh}
+.auth .card{background:var(--card);border-radius:12px;padding:36px 28px;width:360px;box-shadow:0 2px 16px rgba(0,0,0,.08)}
+.auth h2{text-align:center;font-size:22px;margin-bottom:4px}
+.auth .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:20px}
+.auth label{font-size:13px;display:block;margin:10px 0 3px;color:#555}
+.auth input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:14px}
+.auth input:focus{outline:none;border-color:var(--primary)}
+.auth .btn{margin-top:14px;width:100%;padding:11px;font-size:15px}
+.auth .err{color:var(--danger);font-size:12px;margin-top:6px;text-align:center}
+.auth .switch{text-align:center;margin-top:14px;font-size:13px;color:var(--muted)}
+.auth .switch a{color:var(--primary);cursor:pointer;text-decoration:underline}
 
-  /* 控制台 */
-  .dashboard { display: none; max-width: 1100px; margin: 0 auto; padding: 20px; }
-  .grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
-  .card h3 { font-size: 13px; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
-  .list { list-style: none; }
-  .list li { padding: 8px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
-  .list li:last-child { border-bottom: none; }
-  .list .empty { color: var(--muted); font-style: italic; }
-  .badge { background: var(--primary); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
-  .room-actions { display: flex; gap: 4px; }
-  .input-row { display: flex; gap: 8px; margin-bottom: 10px; }
-  .input-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; }
-  .input-row input:focus { outline: none; border-color: var(--primary); }
+/* header */
+.hdr{height:50px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0}
+.hdr h1{font-size:16px}
+.hdr select{padding:5px 8px;border-radius:6px;border:none;font-size:13px;background:rgba(255,255,255,.2);color:#fff;min-width:120px}
+.hdr select option{color:var(--text)}
+.hdr .btn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)}
 
-  .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: var(--radius); color: #fff; font-size: 14px; z-index: 999; animation: fadeIn .3s; }
-  .toast-success { background: var(--success); }
-  .toast-error { background: var(--danger); }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-  @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .auth-card { width: 100%; margin: 16px; } }
+/* banner */
+.bnr{padding:6px 16px;text-align:center;font-size:12px;font-weight:500}
+.bnr.warn{background:#fef3c7;color:#92400e}
+.bnr.err{background:#fee2e2;color:#991b1b}
+
+/* layout */
+.lay{display:flex;flex:1;overflow:hidden}
+.side{width:260px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.tabs{display:flex;border-bottom:1px solid var(--border)}
+.tab{flex:1;padding:10px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--muted);text-align:center;border-bottom:2px solid transparent}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.pnl{flex:1;overflow-y:auto;padding:10px}
+.frow{display:flex;gap:6px;margin-bottom:10px}
+.frow input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:13px}
+.frow input:focus{outline:none;border-color:var(--primary)}
+.frow .btn{white-space:nowrap}
+
+.lst{list-style:none}
+.lst li{padding:9px 8px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-radius:4px}
+.lst li:hover{background:var(--bg)}
+.lst li:last-child{border-bottom:none}
+.lst li.on{background:#eef2ff;font-weight:500}
+.lst .cnt{color:var(--muted);font-size:11px;margin-left:6px}
+.lst .emp{color:var(--muted);font-style:italic;cursor:default}
+.lst .act{display:flex;gap:3px}
+
+/* chat */
+.ctx{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+.ctt{padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border);font-size:14px;font-weight:600}
+.msgs{flex:1;overflow-y:auto;padding:16px}
+.msg{margin-bottom:10px;font-size:14px;line-height:1.6;word-break:break-all}
+.msg .s{font-weight:600;color:var(--primary);margin-right:6px}
+.msg .me{color:var(--success)}
+.msg .sy{color:var(--muted);font-style:italic;font-size:13px}
+.inp{height:56px;padding:10px 16px;background:var(--card);border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0}
+.inp input{flex:1;padding:9px 14px;border:1px solid var(--border);border-radius:20px;font-size:14px}
+.inp input:focus{outline:none;border-color:var(--primary)}
+.inp .btn{border-radius:20px;padding:9px 22px;font-size:14px}
+@media(max-width:768px){.side{display:none}}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>Go IM System</h1>
-  <div class="user-info" id="headerUser" style="display:none;"></div>
-</div>
-
-<!-- 登录/注册 -->
-<div class="auth-page" id="authPage">
-  <div class="auth-card" id="loginCard">
-    <h2>登录</h2>
-    <p class="sub">登录已注册的账号</p>
-    <label>用户名</label>
-    <input type="text" id="loginUsername" placeholder="用户名" maxlength="20">
-    <label>密码</label>
-    <input type="password" id="loginPassword" placeholder="密码" maxlength="30">
-    <button class="btn btn-primary" onclick="handleLogin()">登 录</button>
-    <p class="switch">没有账号？<a onclick="showRegister()">去注册</a></p>
+<div id="app">
+  <!-- login -->
+  <div v-if="!on" class="auth">
+    <div class="card">
+      <h2>{{ reg ? '注册' : '登录' }}</h2>
+      <p class="sub">{{ reg ? '创建新账号' : '登录已有账号' }}</p>
+      <label>用户名</label>
+      <input v-model="f.user" placeholder="用户名" maxlength="20">
+      <label v-if="reg">昵称</label>
+      <input v-if="reg" v-model="f.nick" placeholder="显示名称" maxlength="20">
+      <label>密码</label>
+      <input v-model="f.pwd" type="password" placeholder="密码" maxlength="30" @keyup.enter="reg?doReg():doLogin()">
+      <div class="err" v-if="ae">{{ ae }}</div>
+      <button class="btn btn-p" @click="reg?doReg():doLogin()" :disabled="ld">{{ ld?'请稍候...':(reg?'注 册':'登 录') }}</button>
+      <p class="switch">{{ reg?'已有账号？':'没有账号？' }}<a @click="reg=!reg;ae=''">{{ reg?'去登录':'去注册' }}</a></p>
+    </div>
   </div>
 
-  <div class="auth-card" id="registerCard" style="display:none;">
-    <h2>注册</h2>
-    <p class="sub">创建新账号</p>
-    <label>用户名</label>
-    <input type="text" id="regUsername" placeholder="用户名" maxlength="20">
-    <label>昵称</label>
-    <input type="text" id="regNickname" placeholder="显示名称" maxlength="20">
-    <label>密码</label>
-    <input type="password" id="regPassword" placeholder="密码" maxlength="30">
-    <button class="btn btn-primary" onclick="handleRegister()">注 册</button>
-    <p class="switch">已有账号？<a onclick="showLogin()">去登录</a></p>
-  </div>
-</div>
-
-<!-- 控制台 -->
-<div class="dashboard" id="dashboard">
-  <div class="grid">
-    <div>
-      <div class="card">
-        <h3>在线用户 <span id="onlineCount" style="color:var(--text);">0</span></h3>
-        <ul class="list" id="onlineUsers"><li class="empty">加载中...</li></ul>
-      </div>
-      <div class="card">
-        <h3>我的房间</h3>
-        <ul class="list" id="myRooms"><li class="empty">未加入任何房间</li></ul>
+  <!-- chat -->
+  <div v-if="on" style="display:flex;flex-direction:column;height:100vh">
+    <div class="hdr">
+      <h1>Go IM</h1>
+      <div style="display:flex;align-items:center;gap:10px">
+        <select v-model="ch">
+          <option value="public">公聊大厅</option>
+          <option v-for="r in mro" :value="r"># {{ r }}</option>
+        </select>
+        <button class="btn btn-s" @click="la" style="margin-right:4px">刷新</button>
+        <span style="font-size:13px">{{ mn }}</span>
+        <button class="btn btn-s" @click="out">退出</button>
       </div>
     </div>
-    <div>
-      <div class="card">
-        <h3>创建房间</h3>
-        <div class="input-row">
-          <input type="text" id="newRoomName" placeholder="房间名" maxlength="20">
-          <button class="btn btn-primary" onclick="createRoom()">创建</button>
+    <div class="bnr" :class="sb.c" v-if="sb.t">{{ sb.t }}</div>
+    <div class="lay">
+      <div class="side">
+        <div class="tabs">
+          <div class="tab" :class="{on:tab==='rooms'}" @click="tab='rooms'">房间</div>
+          <div class="tab" :class="{on:tab==='users'}" @click="tab='users'">在线({{ol.length}})</div>
+        </div>
+        <div class="pnl" v-show="tab==='rooms'">
+          <div class="frow">
+            <input v-model="nr" placeholder="新房间名" maxlength="20" @keyup.enter="mkRoom">
+            <button class="btn btn-p btn-s" @click="mkRoom">创建</button>
+          </div>
+          <div style="color:var(--danger);font-size:12px;margin-bottom:8px" v-if="re">{{ re }}</div>
+          <ul class="lst">
+            <li v-if="rms.length===0" class="emp">暂无房间</li>
+            <li v-for="r in rms" :class="{on:ch===r.Name}" @click="ch=r.Name">
+              <span>{{ r.Name }}<span class="cnt">{{ r.Count }}人</span></span>
+              <span class="act">
+                <button class="btn btn-s btn-o" @click.stop="join(r.Name)">加入</button>
+                <button class="btn btn-s btn-o btn-d" @click.stop="quit(r.Name)">退出</button>
+              </span>
+            </li>
+          </ul>
+        </div>
+        <div class="pnl" v-show="tab==='users'">
+          <ul class="lst">
+            <li v-if="ol.length===0" class="emp">暂无在线用户</li>
+            <li v-for="u in ol" @click="ch='pv:'+u.id;tab='rooms'">
+              <span><b>{{ u.nickname }}</b><span style="color:var(--muted);font-size:11px;margin-left:4px">ID:{{ u.id }}</span></span>
+              <span v-if="u.nickname===mn" style="color:var(--muted);font-style:italic;font-size:11px">你</span>
+            </li>
+          </ul>
         </div>
       </div>
-      <div class="card">
-        <h3>房间列表</h3>
-        <ul class="list" id="rooms"><li class="empty">加载中...</li></ul>
-      </div>
-      <div class="card" id="memberPanel" style="display:none;">
-        <h3 id="memberPanelTitle">房间成员</h3>
-        <ul class="list" id="roomMembers"></ul>
+      <div class="ctx">
+        <div class="ctt">{{ cht }}</div>
+        <div class="msgs" ref="bx">
+          <div v-for="(m,i) in fmsgs" :key="i" class="msg">
+            <span v-if="m.sy" class="sy">{{ m.tx }}</span>
+            <template v-else>
+              <span v-if="m.ck&&m.ck.startsWith('pv:')" style="background:#fce7f3;color:#be185d;font-size:10px;padding:1px 5px;border-radius:3px;margin-right:4px">{{ m.fr===mn?'发给':'来自 '+m.fr }}</span>
+              <span v-else-if="m.ck&&m.ck!=='public'" style="background:#e0e7ff;color:#4338ca;font-size:10px;padding:1px 5px;border-radius:3px;margin-right:4px">{{ m.ck }}</span>
+              <span class="s" :class="{me:m.fr===mn}">{{ m.fr===mn?'你':m.fr }}</span>{{ m.tx }}
+            </template>
+          </div>
+        </div>
+        <div class="inp">
+          <input v-model="mi" :placeholder="inh" @keyup.enter="snd" :disabled="!wo">
+          <button class="btn btn-p" @click="snd" :disabled="!wo">发送</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-const API = '';
+const {createApp,ref,reactive,computed,nextTick,onMounted,onUnmounted}=Vue;
 
-// 工具
-function toast(msg, type) {
-  const t = document.createElement('div');
-  t.className = 'toast toast-' + type;
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
-}
+createApp({setup(){
+  const A='',WS='ws://'+location.host+'/ws';
+  let ws=null,ti=null,rc=0;
 
-function authHeaders() {
-  const token = localStorage.getItem('im_token');
-  return token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-}
+  // auth
+  const on=ref(false),reg=ref(false),ld=ref(false),ae=ref('');
+  const f=reactive({user:'',nick:'',pwd:''});
+  const mn=ref('');
 
-async function api(method, path, body) {
-  const opts = { method, headers: authHeaders() };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(API + path, opts);
-  return res.json();
-}
+  // ws
+  const wo=ref(false),sb=reactive({t:'',c:'warn'});
 
-// ========== 登录/注册 ==========
+  // chat
+  const ch=ref('public'),mi=ref(''),ms=ref([]),bx=ref(null),tab=ref('rooms');
+  const rms=ref([]),ol=ref([]),mro=ref([]),nr=ref(''),re=ref('');
 
-function showRegister() {
-  document.getElementById('loginCard').style.display = 'none';
-  document.getElementById('registerCard').style.display = 'block';
-}
-
-function showLogin() {
-  document.getElementById('registerCard').style.display = 'none';
-  document.getElementById('loginCard').style.display = 'block';
-}
-
-async function handleLogin() {
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  if (!username || !password) return toast('请填写用户名和密码', 'error');
-  const data = await api('POST', '/login', { username, password });
-  if (data.code === 0 && data.data) {
-    localStorage.setItem('im_token', data.data.Token);
-    localStorage.setItem('im_username', data.data.Nickname);
-    showDashboard(data.data);
-    toast('登录成功', 'success');
-  } else {
-    toast(data.msg || '登录失败', 'error');
-  }
-}
-
-async function handleRegister() {
-  const username = document.getElementById('regUsername').value.trim();
-  const nickname = document.getElementById('regNickname').value.trim();
-  const password = document.getElementById('regPassword').value;
-  if (!username || !password || !nickname) return toast('请填写所有字段', 'error');
-  const data = await api('POST', '/register', { username, password, nickname });
-  if (data.code === 0) {
-    toast('注册成功，请登录', 'success');
-    showLogin();
-    document.getElementById('loginUsername').value = username;
-    document.getElementById('loginPassword').value = '';
-  } else {
-    toast(data.msg || '注册失败', 'error');
-  }
-}
-
-// ========== 控制台 ==========
-
-function showDashboard(user) {
-  document.getElementById('authPage').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-  document.getElementById('headerUser').style.display = 'flex';
-  document.getElementById('headerUser').innerHTML = '<span>' + esc(user.Nickname || user.Username) + '</span><button class="btn btn-outline btn-sm" onclick="handleLogout()">退出</button>';
-  refresh();
-  setInterval(refresh, 5000);
-}
-
-function handleLogout() {
-  localStorage.removeItem('im_token');
-  localStorage.removeItem('im_username');
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('authPage').style.display = 'flex';
-  document.getElementById('headerUser').style.display = 'none';
-  document.getElementById('loginPassword').value = '';
-  showLogin();
-}
-
-// ========== 管理功能 ==========
-
-async function refresh() {
-  await Promise.all([loadOnlineUsers(), loadRooms(), loadMyRooms()]);
-}
-
-async function loadOnlineUsers() {
-  try {
-    const data = await api('GET', '/online-users');
-    if (data.code === 0) {
-      const list = data.data || [];
-      document.getElementById('onlineCount').textContent = list.length;
-      const ul = document.getElementById('onlineUsers');
-      ul.innerHTML = list.length === 0 ? '<li class="empty">暂无在线用户</li>' : list.map(u => '<li>' + esc(u) + '</li>').join('');
+  // computed
+  const cht=computed(()=>{
+    if(ch.value==='public')return '公聊大厅';
+    if(ch.value.startsWith('pv:')){
+      let id=ch.value.replace('pv:','');
+      let u=ol.value.find(o=>String(o.id)===id);
+      return '私聊 '+(u?u.nickname:'ID:'+id);
     }
-  } catch (e) {}
-}
+    return '# '+ch.value;
+  });
+  const inh=computed(()=>{
+    if(!wo.value)return '未连接...';
+    if(ch.value==='public')return '输入公聊消息...';
+    if(ch.value.startsWith('pv:')){let id=ch.value.replace('pv:','');let u=ol.value.find(o=>String(o.id)===id);return '私聊 '+(u?u.nickname:'ID:'+id)+'...';}
+    return '发送到 #'+ch.value+'...';
+  });
+  const fmsgs=computed(()=>ms.value);
 
-async function loadRooms() {
-  try {
-    const data = await api('GET', '/rooms');
-    if (data.code === 0) {
-      const list = data.data || [];
-      const ul = document.getElementById('rooms');
-      ul.innerHTML = list.length === 0 ? '<li class="empty">暂无房间</li>' : list.map(r =>
-        '<li><span>' + esc(r.Name) + ' <span class="badge">' + r.Count + ' 人</span></span>' +
-        '<span class="room-actions">' +
-        '<button class="btn btn-primary btn-sm" onclick="viewMembers(\'' + esc(r.Name) + '\')">成员</button>' +
-        '<button class="btn btn-primary btn-sm" onclick="joinRoom(\'' + esc(r.Name) + '\')">加入</button>' +
-        '<button class="btn btn-danger btn-sm" onclick="leaveRoom(\'' + esc(r.Name) + '\')">退出</button>' +
-        '</span></li>').join('');
-    }
-  } catch (e) {}
-}
-
-async function viewMembers(room) {
-  try {
-    const data = await api('GET', '/rooms/' + room + '/members');
-    const panel = document.getElementById('memberPanel');
-    const ul = document.getElementById('roomMembers');
-    panel.style.display = 'block';
-    document.getElementById('memberPanelTitle').textContent = '房间 ' + room + ' 的成员';
-    ul.innerHTML = (data.code === 0 && data.data && data.data.length > 0) ? data.data.map(m => '<li>' + esc(m) + '</li>').join('') : '<li class="empty">暂无成员</li>';
-  } catch (e) {}
-}
-
-async function loadMyRooms() {
-  const name = localStorage.getItem('im_username');
-  if (!name) return;
-  try {
-    const data = await api('GET', '/users/' + name + '/rooms');
-    const ul = document.getElementById('myRooms');
-    ul.innerHTML = (data.code === 0 && data.data && data.data.length > 0) ? data.data.map(r => '<li>' + esc(r) + '</li>').join('') : '<li class="empty">未加入任何房间</li>';
-  } catch (e) {}
-}
-
-async function createRoom() {
-  const name = document.getElementById('newRoomName').value.trim();
-  if (!name) return toast('请输入房间名', 'error');
-  const username = localStorage.getItem('im_username');
-  const data = await api('POST', '/rooms', { name, user: username });
-  if (data.code === 0) { toast('创建成功', 'success'); document.getElementById('newRoomName').value = ''; refresh(); }
-  else toast(data.msg || '创建失败', 'error');
-}
-
-async function joinRoom(room) {
-  const user = localStorage.getItem('im_username');
-  const data = await api('POST', '/rooms/' + room + '/members/' + user);
-  if (data.code === 0) { toast('加入成功', 'success'); refresh(); viewMembers(room); }
-  else toast(data.msg || '加入失败', 'error');
-}
-
-async function leaveRoom(room) {
-  const user = localStorage.getItem('im_username');
-  const data = await api('DELETE', '/rooms/' + room + '/members/' + user);
-  if (data.code === 0) { toast('已退出', 'success'); refresh(); }
-  else toast(data.msg || '退出失败', 'error');
-}
-
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-// 初始化
-(function init() {
-  const token = localStorage.getItem('im_token');
-  const username = localStorage.getItem('im_username');
-  if (token && username) {
-    showDashboard({ Nickname: username });
+  // helpers
+  function tk(){return sessionStorage.getItem('im_token')||''}
+  async function api(m,p,b){
+    let o={method:m,headers:{}};let t=tk();if(t)o.headers['Authorization']='Bearer '+t;
+    if(b){o.headers['Content-Type']='application/json';o.body=JSON.stringify(b)}
+    let r=await fetch(A+p,o);return r.json();
   }
-})();
+
+  // auth actions
+  async function doLogin(){
+    ae.value='';if(!f.user||!f.pwd){ae.value='请填写用户名和密码';return}
+    ld.value=true;
+    try{
+      let r=await api('POST','/login',{username:f.user,password:f.pwd});
+      if(r.code===0&&r.data){
+        sessionStorage.setItem('im_token',r.data.Token||r.data.token);
+        sessionStorage.setItem('im_nick',r.data.Nickname||r.data.nickname);
+        mn.value=r.data.Nickname||r.data.nickname;
+        on.value=true;nextTick(()=>{cn();la()});
+      }else ae.value=r.msg||'登录失败';
+    }catch(e){ae.value='网络错误:'+e.message}
+    ld.value=false;
+  }
+  async function doReg(){
+    ae.value='';if(!f.user||!f.pwd||!f.nick){ae.value='请填写所有字段';return}
+    ld.value=true;
+    try{
+      let r=await api('POST','/register',{username:f.user,password:f.pwd,nickname:f.nick});
+      if(r.code===0){ae.value='注册成功，请登录';reg.value=false}else ae.value=r.msg||'注册失败';
+    }catch(e){ae.value='网络错误:'+e.message}
+    ld.value=false;
+  }
+  function out(){
+    if(ws)ws.close();if(ti)clearTimeout(ti);
+    sessionStorage.removeItem('im_token');on.value=false;
+    ms.value=[];rms.value=[];ol.value=[];mro.value=[];ch.value='public';wo.value=false;
+  }
+
+  // ws
+  function cn(){
+    sb.t='连接中...';sb.c='warn';
+    ws=new WebSocket(WS);
+    ws.onopen=()=>{wo.value=true;rc=0;sb.t='正在认证...';let t=tk();if(t)ws.send('auth|'+t);};
+    ws.onmessage=(e)=>{hd(e.data.trim())};
+    ws.onclose=()=>{wo.value=false;sb.t='断开，重连('+(++rc)+'s)...';sb.c='err';ti=setTimeout(cn,1000);if(rc>30)rc=30;};
+    ws.onerror=()=>{};
+  }
+  function hd(raw){
+    if(!raw)return;
+    if(raw.startsWith('[系统] 认证成功')){sb.t='';la();return}
+    if(raw.startsWith('[系统]')){ad('',raw.replace('[系统]','').trim(),true,ch.value);la();return}
+    let m=raw.match(/^\[私聊\]\[(.+?) -> (.+?)\] (.+)/);
+    if(m){ad(m[1],m[3],false,'pv:'+m[1]);return}
+    m=raw.match(/^\[(.+?)\]\[(.+?)\] (.+)/);
+    if(m){ad(m[2],m[3],false,m[1]);return}
+    m=raw.match(/^\[(.+?)\](.+?):(.+)/);
+    if(m){ad(m[2],m[3],false,'public');return}
+    ad('',raw,false,'public');
+  }
+  function ad(fr,tx,sy,ck){ms.value.push({fr,tx,sy,ck});if(ms.value.length>500)ms.value.shift();nextTick(()=>{if(bx.value)bx.value.scrollTop=bx.value.scrollHeight})}
+  function snd(){
+    let t=mi.value.trim();if(!t||!wo.value)return;
+    let cmd;
+    if(ch.value==='public')cmd=t;
+    else if(ch.value.startsWith('pv:')){
+      cmd='to|'+ch.value.replace('pv:','')+'|'+t;
+      ad(mn.value,t,false,ch.value);
+    }
+    else cmd='room|'+ch.value+'|'+t;
+    ws.send(cmd);
+    mi.value='';
+  }
+
+  // data
+  async function la(){await Promise.all([ldr(),ldo()]);await ldm()}
+  async function ldr(){try{let r=await api('GET','/api/rooms');if(r.code===0)rms.value=r.data||[]}catch(e){}}
+  async function ldo(){try{let r=await api('GET','/api/online-users');if(r.code===0)ol.value=r.data||[]}catch(e){}}
+  async function ldm(){
+    try{let r=await api('GET','/api/users/'+(mn.value||'')+'/rooms');if(r.code===0&&r.data)mro.value=r.data||[]}catch(e){}
+  }
+
+  // room ops
+  async function mkRoom(){
+    let n=nr.value.trim();if(!n){re.value='请输入房间名';return}re.value='';
+    try{let r=await api('POST','/api/rooms',{name:n});if(r.code===0){nr.value='';if(!mro.value.includes(n))mro.value.push(n);ch.value=n;la()}else re.value=r.msg}catch(e){re.value='创建失败'}
+  }
+  async function join(n){
+    try{let r=await api('POST','/api/rooms/'+n+'/members/'+mn.value);console.log('join resp:',r);
+    if(r&&r.code===0){if(!mro.value.includes(n))mro.value.push(n);ch.value=n;la()}else{alert((r&&r.msg)||'加入失败')}}catch(e){alert('加入失败:'+e.message)}
+  }
+  async function quit(n){
+    try{let r=await api('DELETE','/api/rooms/'+n+'/members/'+mn.value);console.log('quit resp:',r);
+    if(r&&r.code===0){mro.value=mro.value.filter(x=>x!==n);if(ch.value===n)ch.value='public';la()}else{alert((r&&r.msg)||'退出失败')}}catch(e){alert('退出失败:'+e.message)}
+  }
+
+  // init
+  onMounted(()=>{
+    let t=tk();if(t){mn.value=sessionStorage.getItem('im_nick')||'';on.value=true;nextTick(()=>cn())}
+  });
+  onUnmounted(()=>{if(ws)ws.close();if(ti)clearTimeout(ti)});
+
+  return{on,reg,ld,ae,f,mn,wo,sb,ch,mi,ms,bx,tab,rms,ol,mro,nr,re,cht,inh,fmsgs,
+    doLogin,doReg,out,snd,mkRoom,join,quit,la}
+}}).mount('#app');
 </script>
 </body>
 </html>

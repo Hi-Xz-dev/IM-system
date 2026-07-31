@@ -4,6 +4,7 @@ import (
 	"IM-system/user"
 	"bufio"
 	"net"
+	"IM-system/internal/connection"
 )
 
 // handler
@@ -17,22 +18,25 @@ func (s *Server) Handler(conn net.Conn) {
 		conn.Close()
 		return
 	}
+	addr := conn.RemoteAddr().String()
+	tcpConn := connection.NewTCPConnection(conn)
 	//创建user
 	usr := user.NewUser(
-		conn,
+		tcpConn,
 		userID,
 		nickname,
+		addr,
 	)
 
 	go usr.ListenMessage(s.Disconnect)
-	//通知 Handler：读协程结束了，你也可以退出了 只做通知 内容无所谓 省内存
-	done := make(chan struct{})
+
 	//用户上线业务
 	s.Online(usr)
 	//认证成功
-	conn.Write([]byte("[系统] 认证成功\n"))
+	tcpConn.Write([]byte("[系统] 认证成功\n"))
+
+	reader := connection.NewTCPReader(conn)
 	//启动读协程 负责读客户端发来的消息
-	go s.readLoop(conn, scanner, usr, done)
-	//等这个 Channel 被关闭。
-	<-done
+	s.ServerReader(reader,usr)
+
 }

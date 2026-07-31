@@ -13,7 +13,7 @@ type Server struct {
 	IP   string
 	Port int
 	//在线用户列表
-	OnlineUsers map[string]*user.User
+	OnlineUsers map[int64][]*user.User
 	//保护一组有关联的共享状态
 	mapLock sync.RWMutex
 	//消息广播的channel
@@ -34,7 +34,7 @@ func NewServer(ip string, port int, authService *auth.Service,) *Server {
 	return &Server{
 		IP:          ip,
 		Port:        port,
-		OnlineUsers: make(map[string]*user.User),
+		OnlineUsers: make(map[int64][]*user.User),
 		Message:     make(chan string, 100),
 		Rooms:       make(map[string]*room.Room),
 		Disconnect:  make(chan *user.User, 100),

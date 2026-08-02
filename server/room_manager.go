@@ -1,8 +1,10 @@
 package server
 
 import (
+	"IM-system/internal/logger"
 	"IM-system/room"
 	"IM-system/user"
+
 	"fmt"
 	"strings"
 )
@@ -13,7 +15,7 @@ func (s *Server) Members(usr *user.User, roomName string) {
 
 	if !usr.InRoom(roomName) {
 		s.mapLock.RUnlock()
-		usr.SendMsg("当前未加入房间")
+		_ = s.SendSystemMessage(usr, "当前未加入房间")
 		return
 	}
 
@@ -21,7 +23,7 @@ func (s *Server) Members(usr *user.User, roomName string) {
 
 	if !ok {
 		s.mapLock.RUnlock()
-		usr.SendMsg("房间不存在")
+		_ = s.SendSystemMessage(usr, "房间不存在")
 		return
 	}
 	names := make(map[string]struct{})
@@ -42,7 +44,7 @@ func (s *Server) Members(usr *user.User, roomName string) {
 
 		result = append(result, name)
 	}
-	usr.SendMsg("房间成员：" + strings.Join(result, ","))
+	_ = s.SendSystemMessage(usr, "房间成员："+strings.Join(result, ","))
 }
 
 // 显示房间
@@ -57,71 +59,111 @@ func (s *Server) ShowRooms(user *user.User) {
 	s.mapLock.RUnlock()
 	// 锁外 IO
 	for _, msg := range msgs {
-		user.SendMsg(msg)
+		_ = s.SendSystemMessage(user, msg)
 	}
 }
 
 // 加入房间
 func (s *Server) JoinRoom(joinuser *user.User, roomName string) {
 	s.mapLock.Lock()
-	r, ok := s.Rooms[roomName]
-	if !ok {
-		s.mapLock.Unlock() //提前返回
-		joinuser.SendMsg("房间名不存在，请重试")
-		return //有返回 要么用defer 或者提前解锁
+
+	if _, ok := s.Rooms[roomName]; !ok {
+		s.mapLock.Unlock()
+		s.SendSystemMessage(
+			joinuser,
+			"房间名不存在，请重试",
+		)
+		return
 	}
 	if joinuser.InRoom(roomName) {
 		s.mapLock.Unlock()
-		joinuser.SendMsg("已加入房间" + roomName)
+		s.SendSystemMessage(
+			joinuser,
+			"已加入房间 "+roomName,
+		)
 		return
-	}
-	users := make([]*user.User, 0)
-
-	for _, userList := range r.Users {
-
-		for _, u := range userList {
-
-			users = append(users, u)
-		}
 	}
 	s.joinRoomUnsafe(joinuser, roomName)
+
+	users := s.getRoomUsersUnsafe(roomName)
+
 	s.mapLock.Unlock() //正常返回
 	//广播消息
-	msg := "[系统][" + joinuser.Nickname + "]" + "加入房间：" + roomName + "\n"
-	s.RoomBroadcast(users, msg)
-	joinuser.SendMsg("成功加入房间：" + roomName)
+	if err := s.SendRoomMessage(
+		joinuser,
+		users,
+		roomName,
+		"加入房间",
+	); err != nil {
+		logger.Log.Error(
+			"send room message failed",
+			"error",
+			err,
+		)
+	}
+	if err := s.SendSystemMessage(
+		joinuser,
+		"成功加入房间："+roomName,
+	); err != nil {
+
+		logger.Log.Error(
+			"send system message failed",
+			"error",
+			err,
+		)
+	}
 }
 
-// 退出房间（外层）
+// 退出房间
 func (s *Server) LeaveRoom(leaveuser *user.User, roomName string) {
 	s.mapLock.Lock()
+
+	if _, ok := s.Rooms[roomName]; !ok {
+		s.mapLock.Unlock()
+		s.SendSystemMessage(
+			leaveuser,
+			"当前房间不存在",
+		) //防御式编程（Defensive Programming）
+		return
+	}
+
 	if !leaveuser.InRoom(roomName) {
 		s.mapLock.Unlock()
-		leaveuser.SendMsg("当前未加入房间" + roomName)
-		return
-	}
-	r, ok := s.Rooms[roomName]
-	if !ok {
-		s.mapLock.Unlock()
-		leaveuser.SendMsg("当前房间不存在") //防御式编程（Defensive Programming）
+		s.SendSystemMessage(
+			leaveuser,
+			"当前未加入房间",
+		)
 		return
 	}
 
-	users := make([]*user.User, 0)
-
-	for _, userList := range r.Users {
-
-		for _, u := range userList {
-
-			users = append(users, u)
-		}
-	}
-	//modify data
 	s.leaveRoomUnsafe(leaveuser, roomName)
+
+	users := s.getRoomUsersUnsafe(roomName)
+
 	s.mapLock.Unlock()
-	msg := "[系统][" + leaveuser.Nickname + "]" + "离开房间：" + roomName + "\n"
-	s.RoomBroadcast(users, msg)
-	leaveuser.SendMsg("退出房间成功")
+	if err := s.SendRoomMessage(
+		leaveuser,
+		users,
+		roomName,
+		"离开房间",
+	); err != nil {
+		logger.Log.Error(
+			"send room message failed",
+			"error",
+			err,
+		)
+	}
+	if err := s.SendSystemMessage(
+		leaveuser,
+		"成功退出房间："+roomName,
+	); err != nil {
+
+		logger.Log.Error(
+			"send system message failed",
+			"error",
+			err,
+		)
+	}
 }
 
 // 创建房间
@@ -129,7 +171,7 @@ func (s *Server) CreateRoom(createuser *user.User, roomName string) {
 	s.mapLock.Lock()
 	if _, ok := s.Rooms[roomName]; ok {
 		s.mapLock.Unlock()
-		createuser.SendMsg("房间名存在，请重试")
+		_ = s.SendSystemMessage(createuser, "房间名存在，请重试")
 		return
 	}
 	//1. 把新房间加入 Server.Rooms
@@ -144,30 +186,41 @@ func (s *Server) CreateRoom(createuser *user.User, roomName string) {
 func (s *Server) RoomChat(sender *user.User, roomName, content string) {
 	s.mapLock.RLock()
 
+	if _, ok := s.Rooms[roomName]; !ok {
+		s.mapLock.RUnlock()
+		s.SendSystemMessage(
+			sender,
+			"当前房间不存在",
+		)
+		return
+	}
+
 	if !sender.InRoom(roomName) {
 		s.mapLock.RUnlock()
-		sender.SendMsg("当前用户未加入该房间")
+		s.SendSystemMessage(
+			sender,
+			"当前用户未加入房间",
+		)
 		return
 	}
-	r, ok := s.Rooms[roomName]
-	if !ok {
-		s.mapLock.RUnlock()
-		sender.SendMsg("当前房间不存在")
-		return
-	}
-	// snapshot
-	users := make([]*user.User, 0)
 
-	for _, userList := range r.Users {
+	users := s.getRoomUsersUnsafe(roomName)
 
-		for _, u := range userList {
-
-			users = append(users, u)
-		}
-	}
 	s.mapLock.RUnlock()
-	msg := "[" + roomName + "][" + sender.Nickname + "] " + content
-	s.RoomBroadcast(users, msg)
+
+	if err := s.SendRoomMessage(
+		sender,
+		users,
+		roomName,
+		content,
+	); err != nil {
+		logger.Log.Error(
+			"send room message failed",
+			"error",
+			err,
+		)
+	}
+
 }
 
 // 在线房间及人数
@@ -229,6 +282,30 @@ func (s *Server) leaveRoomUnsafe(leaveuser *user.User, roomName string) {
 	if len(r.Users) == 0 {
 		delete(s.Rooms, roomName) //房间无成员直接删除房间
 	}
+}
+
+// 返回房间用户切片
+func (s *Server) getRoomUsersUnsafe(
+	roomName string,
+) []*user.User {
+
+	r, ok := s.Rooms[roomName]
+
+	if !ok {
+		return nil
+	}
+
+	users := make([]*user.User, 0)
+
+	for _, sessions := range r.Users {
+
+		for _, u := range sessions {
+
+			users = append(users, u)
+		}
+	}
+
+	return users
 }
 
 //================HTTP========================

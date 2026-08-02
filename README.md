@@ -220,9 +220,11 @@ go test -bench=. -benchmem ./internal/protocol/  # 性能基准
 ## 工程亮点
 
 - **TCP / WebSocket 双协议** — 共用 ServerReader、DoMessage、业务层，`Connection` 接口抽象
+- **统一 JSON 消息协议** — `domain.Message{Type, From, FromNickname, Content}` 全部输出，前端一套解析
 - **WebSocket 并发写安全** — 认证成功消息走 `SendMsg → ListenMessage`，单 goroutine 写
 - **JWT 认证链路** — HTTP 中间件 + WebSocket 握手 + TCP 认证，共用 `auth.Service`
-- **多 session 同步** — `OnlineUsers` 按 userID 聚合，创建/加入房间同步所有活跃 session
+- **多 session 同步** — `OnlineUsers` 按 userID 聚合，创建/加入/改名同步所有活跃 session
+- **改名全服广播** — 改名后通知所有在线用户，TCP 和 HTTP 路径均支持
 - **协议解析抽象** — `Parse(raw) → Command{Type, Args, Raw}` 替代字符串匹配
 - **统一写路径** — 所有消息经 `User.C → ListenMessage → conn.Write` 单一路径
 - **多房间支持** — `JoinedRooms map[string]struct{}`，改名和下线同步所有房间
@@ -232,7 +234,7 @@ go test -bench=. -benchmem ./internal/protocol/  # 性能基准
 - **Handler 生命周期** — `done` channel 保证读协程退出后 Handler 才退出，零泄漏
 - **Offline 幂等** — `IsClosed` 标记位防止多路径重复下线
 - **sessionStorage 隔离** — 多 Tab 各自独立 Token，不互相覆盖
-- **优雅退出** — `SIGINT/SIGTERM` → 停止 Accept → 逐用户下线 → 释放资源
+- **优雅退出** — `SIGINT/SIGMTERM` → 停止 Accept → 逐用户下线 → 释放资源
 - **结构化日志** — `slog`，每条 HTTP 请求记录 method/path/status/cost
 - **并发安全** — `sync.RWMutex` + Lock-Snapshot-IO 模式，Race Detector 验证通过
 

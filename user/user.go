@@ -47,11 +47,17 @@ func (u *User) UpdateActiveTime() {
 }
 
 // 给当前user对应的客户端发送消息
-func (u *User) SendMsg(msg string) {
+func (u *User) SendMsg(msg string) error {
+
 	select {
 	case u.C <- msg:
+		return nil
+
 	default:
-		fmt.Println("[WARN] user channel full, drop message:", u.Nickname)
+		return fmt.Errorf(
+			"user %s send queue full",
+			u.Nickname,
+		)
 	}
 }
 

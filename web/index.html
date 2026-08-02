@@ -105,7 +105,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <option v-for="r in mro" :value="r"># {{ r }}</option>
         </select>
         <button class="btn btn-s" @click="la" style="margin-right:4px">刷新</button>
-        <span style="font-size:13px">{{ mn }}</span>
+        <span style="font-size:13px;cursor:pointer" @click="doRename" title="点击改名">{{ mn }}</span>
         <button class="btn btn-s" @click="out">退出</button>
       </div>
     </div>
@@ -250,15 +250,30 @@ createApp({setup(){
   }
   function hd(raw){
     if(!raw)return;
-    if(raw.startsWith('[系统] 认证成功')){sb.t='';la();return}
-    if(raw.startsWith('[系统]')){ad('',raw.replace('[系统]','').trim(),true,ch.value);la();return}
-    let m=raw.match(/^\[私聊\]\[(.+?) -> (.+?)\] (.+)/);
-    if(m){ad(m[1],m[3],false,'pv:'+m[1]);return}
-    m=raw.match(/^\[(.+?)\]\[(.+?)\] (.+)/);
-    if(m){ad(m[2],m[3],false,m[1]);return}
-    m=raw.match(/^\[(.+?)\](.+?):(.+)/);
-    if(m){ad(m[2],m[3],false,'public');return}
-    ad('',raw,false,'public');
+    // JSON 消息
+    try{
+      let msg=JSON.parse(raw);
+      if(msg.type==='system'){
+        let isSysNotify=(msg.from===0&&msg.from_nickname==='系统');
+        if(msg.content==='认证成功'){sb.t='';la();return}
+        if(isSysNotify){ad(msg.from_nickname,msg.content,true,ch.value);la();return}
+        ad(msg.from_nickname,msg.content,false,'public');la();return;
+      }
+      if(msg.type==='private'){ad(msg.from_nickname,msg.content,false,'pv:'+msg.from);return}
+      if(msg.type==='room'){ad(msg.from_nickname,msg.content,false,msg.room_id);return}
+      ad('',msg.content||raw,false,'public');
+    }catch(e){
+      // 兼容旧纯文本格式
+      if(raw.startsWith('[系统] 认证成功')){sb.t='';la();return}
+      if(raw.startsWith('[系统]')){ad('',raw.replace('[系统]','').trim(),true,ch.value);la();return}
+      let m=raw.match(/^\[私聊\]\[(.+?) -> (.+?)\] (.+)/);
+      if(m){ad(m[1],m[3],false,'pv:'+m[1]);return}
+      m=raw.match(/^\[(.+?)\]\[(.+?)\] (.+)/);
+      if(m){ad(m[2],m[3],false,m[1]);return}
+      m=raw.match(/^\[(.+?)\](.+?):(.+)/);
+      if(m){ad(m[2],m[3],false,'public');return}
+      ad('',raw,false,'public');
+    }
   }
   function ad(fr,tx,sy,ck){ms.value.push({fr,tx,sy,ck});if(ms.value.length>500)ms.value.shift();nextTick(()=>{if(bx.value)bx.value.scrollTop=bx.value.scrollHeight})}
   function snd(){
@@ -295,6 +310,11 @@ createApp({setup(){
     try{let r=await api('DELETE','/api/rooms/'+n+'/members/'+mn.value);console.log('quit resp:',r);
     if(r&&r.code===0){mro.value=mro.value.filter(x=>x!==n);if(ch.value===n)ch.value='public';la()}else{alert((r&&r.msg)||'退出失败')}}catch(e){alert('退出失败:'+e.message)}
   }
+  async function doRename(){
+    let nn=prompt('新昵称：',mn.value);if(!nn||nn===mn.value)return;
+    try{let r=await api('PUT','/api/user/'+mn.value,{name:nn.trim()});
+    if(r&&r.code===0){mn.value=nn.trim();sessionStorage.setItem('im_nick',nn.trim());alert('改名成功')}else{alert((r&&r.msg)||'改名失败')}}catch(e){alert('改名失败:'+e.message)}
+  }
 
   // init
   onMounted(()=>{
@@ -303,7 +323,7 @@ createApp({setup(){
   onUnmounted(()=>{if(ws)ws.close();if(ti)clearTimeout(ti)});
 
   return{on,reg,ld,ae,f,mn,wo,sb,ch,mi,ms,bx,tab,rms,ol,mro,nr,re,cht,inh,fmsgs,
-    doLogin,doReg,out,snd,mkRoom,join,quit,la}
+    doLogin,doReg,out,snd,mkRoom,join,quit,doRename,la}
 }}).mount('#app');
 </script>
 </body>

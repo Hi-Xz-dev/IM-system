@@ -1,7 +1,9 @@
 package server
 
 import (
+	"IM-system/internal/logger"
 	"IM-system/user"
+
 	"strings"
 )
 
@@ -13,7 +15,7 @@ func (s *Server) Online(usr *user.User) {
 		append(s.OnlineUsers[usr.ID], usr)
 	s.mapLock.Unlock()
 	//广播当前用户上线信息
-	s.BroadCast(usr, "上线")
+	s.BroadcastSystemMessage(usr, "上线")
 }
 
 // 用户下线业务
@@ -55,7 +57,7 @@ func (s *Server) Offline(usr *user.User) {
 
 	usr.Close()
 
-	s.BroadCast(usr, "已下线")
+	s.BroadcastSystemMessage(usr, "已下线")
 }
 
 // 查询用户加入房间列表
@@ -67,10 +69,10 @@ func (s *Server) Where(usr *user.User) {
 	}
 	s.mapLock.RUnlock()
 	if len(rooms) == 0 {
-		usr.SendMsg("当前未加入任何房间")
+		_ = s.SendSystemMessage(usr, "当前未加入任何房间")
 		return
 	}
-	usr.SendMsg("已加入房间：" + strings.Join(rooms, ","))
+	_ = s.SendSystemMessage(usr, "已加入房间："+strings.Join(rooms, ","))
 }
 
 // 私聊功能
@@ -79,15 +81,37 @@ func (s *Server) PrivateChat(sender *user.User, targetID int64, content string) 
 	targetSessions, ok := s.OnlineUsers[targetID]
 	s.mapLock.RUnlock()
 	if !ok || len(targetSessions) == 0 {
-		sender.SendMsg("用户不存在，请重试")
+
+		err := s.SendSystemMessage(sender, "用户不存在，请重试")
+		if err != nil {
+			logger.Log.Error(
+				"send system message failed",
+				"error",
+				err,
+			)
+		}
 		return
 	}
-	targetNick := targetSessions[0].Nickname
-	privateMsg := "[私聊][" + sender.Nickname + " -> " + targetNick + "] " + content
-	for _, tu := range targetSessions {
-		tu.SendMsg(privateMsg)
+	if err := s.SendPrivateMessage(
+		sender, targetSessions, targetID, content,
+	); err != nil {
+		logger.Log.Error(
+			"send private message failed",
+			"error",
+			err,
+		)
 	}
-	sender.SendMsg("[系统] 私聊发送成功 -> " + targetNick)
+
+	if err := s.SendSystemMessage(
+		sender, "私聊发送成功",
+	); err != nil {
+
+		logger.Log.Warn(
+			"send success message failed",
+			"error",
+			err,
+		)
+	}
 }
 
 // 用户改名业务
@@ -96,7 +120,10 @@ func (s *Server) Rename(usr *user.User, newName string) {
 	if s.nameExistsUnsafe(newName) {
 		s.mapLock.Unlock()
 
-		usr.SendMsg("用户名已存在，请重试")
+		_ = s.SendSystemMessage(
+			usr,
+			"用户名已存在，请重试",
+		)
 		return
 	}
 
@@ -113,17 +140,19 @@ func (s *Server) Rename(usr *user.User, newName string) {
 		u.Nickname = newName
 	}
 
-	//snalshot
-	allusers := make([]*user.User, 0)
-
-	for _, userList := range s.OnlineUsers {
-		for _, u := range userList {
-			allusers = append(allusers, u)
-		}
-	}
 	s.mapLock.Unlock()
-	msg := "[系统] " + oldName + " 改名为 " + newName + "\n"
-	s.RoomBroadcast(allusers, msg)
+
+	if err := s.BroadcastSystemMessage(
+		usr,
+		oldName+" 改名为 "+newName,
+	); err != nil {
+
+		logger.Log.Error(
+			"broadcast rename failed",
+			"error",
+			err,
+		)
+	}
 }
 
 // 检查重名
@@ -142,9 +171,23 @@ func (s *Server) nameExistsUnsafe(name string) bool {
 	return false
 }
 
+// 返回在线用户切片
+func (s *Server) getOnlineSessionsUnsafe() []*user.User {
+
+	users := make([]*user.User, 0)
+
+	for _, clients := range s.OnlineUsers {
+		for _, cli := range clients {
+			users = append(users, cli)
+		}
+	}
+
+	return users
+}
+
 // Help
 func (s *Server) Help(user *user.User) {
-	user.SendMsg(
+	_ = s.SendSystemMessage(user, 
 		`======= 命令列表 =======
 who                   查看在线用户
 rename|名字           修改昵称
@@ -160,6 +203,8 @@ help                  命令列表
 quit                  退出系统
 ========================`)
 }
+
+// ===============HTTP==================
 
 // 查找全部在线用户
 func (s *Server) GetOnlineUsers() []OnlineUser {
@@ -178,33 +223,29 @@ func (s *Server) GetOnlineUsers() []OnlineUser {
 	return users
 }
 
-// ===============HTTP==================
 // 用户改名
 func (s *Server) RenameH(userID int64, newName string) (string, bool) {
 	s.mapLock.Lock()
-	defer s.mapLock.Unlock()
 	users, ok := s.OnlineUsers[userID]
 	if !ok {
+		s.mapLock.Unlock()
 		return "未找到用户", false
 	}
 	for _, us := range s.OnlineUsers {
-
 		for _, u := range us {
-
 			if u.Nickname == newName {
-
+				s.mapLock.Unlock()
 				return "用户名已存在", false
 			}
 		}
-
 	}
-
+	oldName := users[0].Nickname
 	for _, u := range users {
-
 		u.Nickname = newName
-
 	}
-
+	s.mapLock.Unlock()
+	// 广播改名通知
+	_ = s.BroadcastSystemMessage(users[0], oldName+" 改名为 "+newName)
 	return "修改用户名成功", true
 }
 
@@ -217,17 +258,15 @@ func (s *Server) GetUserRoomsH(userID int64) ([]string, bool) {
 		return nil, false
 	}
 
-	if len(users) == 0 {
-		return []string{}, true
+	roomSet := make(map[string]struct{})
+	for _, u := range users {
+		for roomName := range u.JoinedRooms {
+			roomSet[roomName] = struct{}{}
+		}
 	}
-
-	u := users[0]
-
-	rooms := make([]string, 0, len(u.JoinedRooms))
-
-	for roomName := range u.JoinedRooms {
-
-		rooms = append(rooms, roomName)
+	rooms := make([]string, 0, len(roomSet))
+	for name := range roomSet {
+		rooms = append(rooms, name)
 	}
 	return rooms, true
 }

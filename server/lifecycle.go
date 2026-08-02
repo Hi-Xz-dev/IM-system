@@ -63,7 +63,7 @@ func (s *Server) Shutdown() {
 	}
 	s.mapLock.RUnlock()
 	for _, u := range users {
-		u.SendMsg("[系统] 服务器正在关闭")
+		_ = s.SendSystemMessage(u, "服务器正在关闭")
 		s.Offline(u)
 	}
 }

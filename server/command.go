@@ -44,7 +44,7 @@ func (s *Server) DoMessage(usr *user.User, msg string) {
 	case domain.CmdMembers:
 		s.handlerMenbers(usr, cmd.Args)
 	default:
-		s.BroadCast(usr, msg)
+		s.BroadcastSystemMessage(usr, msg)
 	}
 }
 
@@ -64,13 +64,13 @@ func (s *Server) handlerWho(usr *user.User) {
 	s.mapLock.RUnlock()
 
 	for _, cli := range users {
-		onlineMsg := "[" + cli.Addr + "]" + cli.Nickname + ":" + "在线\n"
-		usr.SendMsg(onlineMsg)
+		_ = s.SendSystemMessage(usr, cli.Nickname+" 在线")
 	}
+
 }
 func (s *Server) handlerRename(usr *user.User, args []string) {
 	if len(args) != 1 {
-		usr.SendMsg("[系统] 用法: rename|新名字\n")
+		_ = s.SendSystemMessage(usr, "用法: rename|新名字")
 		return
 	}
 
@@ -79,12 +79,12 @@ func (s *Server) handlerRename(usr *user.User, args []string) {
 
 func (s *Server) handlerPrivateChat(usr *user.User, args []string) {
 	if len(args) != 2 {
-		usr.SendMsg("[系统] 用法: to|用户ID|消息\n")
+		_ = s.SendSystemMessage(usr, "用法: to|用户ID|消息")
 		return
 	}
 	userID, err := protocol.ParseUserID(args[0])
 	if err != nil {
-		usr.SendMsg("[系统] 用户ID错误\n")
+		_ = s.SendSystemMessage(usr, "用户ID错误")
 		return
 	}
 	s.PrivateChat(usr, userID, args[1])
@@ -92,7 +92,7 @@ func (s *Server) handlerPrivateChat(usr *user.User, args []string) {
 
 func (s *Server) handlerCreate(usr *user.User, args []string) {
 	if len(args) != 1 {
-		usr.SendMsg("[系统] 用法: create|房间名\n")
+		_ = s.SendSystemMessage(usr, "用法: create|房间名")
 		return
 	}
 
@@ -100,7 +100,7 @@ func (s *Server) handlerCreate(usr *user.User, args []string) {
 }
 func (s *Server) handlerJoin(usr *user.User, args []string) {
 	if len(args) != 1 {
-		usr.SendMsg("[系统] 用法: join|房间名\n")
+		_ = s.SendSystemMessage(usr, "用法: join|房间名")
 		return
 	}
 
@@ -110,7 +110,7 @@ func (s *Server) handlerJoin(usr *user.User, args []string) {
 // 房间聊天
 func (s *Server) handlerRoomchat(usr *user.User, args []string) {
 	if len(args) != 2 {
-		usr.SendMsg("[系统] 用法: room|房间名|消息内容\n")
+		_ = s.SendSystemMessage(usr, "用法: room|房间名|消息内容")
 		return
 	}
 
@@ -120,7 +120,7 @@ func (s *Server) handlerRoomchat(usr *user.User, args []string) {
 // 离开房间
 func (s *Server) handlerLeaveRoom(usr *user.User, args []string) {
 	if len(args) != 1 {
-		usr.SendMsg("[系统] 用法: leave|房间名\n")
+		_ = s.SendSystemMessage(usr, "用法: leave|房间名")
 		return
 	}
 
@@ -130,7 +130,7 @@ func (s *Server) handlerLeaveRoom(usr *user.User, args []string) {
 // 房间成员
 func (s *Server) handlerMenbers(usr *user.User, args []string) {
 	if len(args) != 1 {
-		usr.SendMsg("[系统] 用法: members|房间名\n")
+		_ = s.SendSystemMessage(usr, "用法: members|房间名")
 		return
 	}
 	s.Members(usr, args[0])

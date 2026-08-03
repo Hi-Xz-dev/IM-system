@@ -1,10 +1,10 @@
 package server
 
 import (
+	"IM-system/internal/connection"
 	"IM-system/user"
 	"bufio"
 	"net"
-	"IM-system/internal/connection"
 )
 
 // handler
@@ -37,6 +37,6 @@ func (s *Server) Handler(conn net.Conn) {
 
 	reader := connection.NewTCPReader(conn)
 	//启动读协程 负责读客户端发来的消息
-	s.ServerReader(reader,usr)
+	s.ServerReader(reader, usr)
 
 }

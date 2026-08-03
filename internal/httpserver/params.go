@@ -14,7 +14,7 @@ func getRoomParam(c *gin.Context) (string, bool) {
 	return room, true
 }
 
-func getUserID(c *gin.Context)(int64, bool) {
+func getUserID(c *gin.Context) (int64, bool) {
 
 	value, exists := c.Get("user_id")
 
@@ -23,10 +23,10 @@ func getUserID(c *gin.Context)(int64, bool) {
 	}
 
 	userID, ok := value.(int64)
-	
+
 	if !ok {
 		return 0, false
-	}	
+	}
 
 	return userID, true
 

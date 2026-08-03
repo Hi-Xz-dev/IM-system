@@ -21,7 +21,7 @@ type User struct {
 }
 
 // 创建一个用户API
-func NewUser(conn connection.Connection, id int64, nickname string, addr string,) *User {
+func NewUser(conn connection.Connection, id int64, nickname string, addr string) *User {
 
 	u := &User{
 		Nickname:    nickname,
@@ -67,8 +67,8 @@ func (u *User) SendMsg(msg string) error {
 // 这个函数只能往 channel 里发送，不能接收。
 func (u *User) ListenMessage(disconnect chan<- *User) {
 	for msg := range u.C {
-		
-		if  err := u.conn.Write([]byte(msg + "\n")); err != nil { //TCP写入数据
+
+		if err := u.conn.Write([]byte(msg + "\n")); err != nil { //TCP写入数据
 			select {
 			case disconnect <- u:
 			default:

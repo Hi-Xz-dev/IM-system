@@ -47,6 +47,6 @@ func Parse(raw string) domain.Command {
 	}
 }
 
-func ParseUserID(arg string) (int64, error){
+func ParseUserID(arg string) (int64, error) {
 	return strconv.ParseInt(arg, 10, 64)
 }

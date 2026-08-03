@@ -3,18 +3,17 @@ package auth
 import (
 	"IM-system/internal/model"
 	"IM-system/internal/repository"
-	
-	"database/sql"
+
 	"context"
-	"strings"
+	"database/sql"
 	"errors"
-	
+	"strings"
 
 	"github.com/go-sql-driver/mysql"
 )
 
 type Service struct {
-	userRepo *repository.UserRepository
+	userRepo   *repository.UserRepository
 	jwtService *JWTService
 }
 
@@ -42,12 +41,11 @@ type LoginResult struct {
 	Username string
 	Nickname string
 	Token    string
-
 }
 
 func NewService(userRepo *repository.UserRepository, jwtService *JWTService) *Service {
 	return &Service{
-		userRepo: userRepo,
+		userRepo:   userRepo,
 		jwtService: jwtService,
 	}
 }
@@ -125,16 +123,16 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, er
 	}, nil
 }
 
-func (s *Service) Authenticate(ctx context.Context, token string)(*model.User, error){
+func (s *Service) Authenticate(ctx context.Context, token string) (*model.User, error) {
 
 	userID, err := s.jwtService.ParseToken(token)
-	
-	if err != nil{
+
+	if err != nil {
 		return nil, err
 	}
 
-	user, err := s.userRepo.FindByID(ctx,userID,)
-	if err != nil{
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
 		return nil, err
 	}
 

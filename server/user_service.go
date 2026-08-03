@@ -187,7 +187,7 @@ func (s *Server) getOnlineSessionsUnsafe() []*user.User {
 
 // Help
 func (s *Server) Help(user *user.User) {
-	_ = s.SendSystemMessage(user, 
+	_ = s.SendSystemMessage(user,
 		`======= 命令列表 =======
 who                   查看在线用户
 rename|名字           修改昵称

@@ -1,5 +1,5 @@
 package connection
 
-type Reader interface{
-	Read() (string,error)
+type Reader interface {
+	Read() (string, error)
 }

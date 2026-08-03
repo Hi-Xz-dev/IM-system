@@ -23,7 +23,7 @@ func RegisterRoutes(
 	r.GET("/ping", h.Ping) //注册路由
 
 	r.GET("/ws", gateway.Handler)
-	
+
 	//需要登录接口
 	api := r.Group("/api")
 
@@ -33,7 +33,7 @@ func RegisterRoutes(
 	api.GET("/rooms", h.Rooms)
 	api.GET("/users/:user/rooms", h.UserRooms)
 	api.GET("/online-users", h.OnlineUsers)
-	
+
 	api.POST("/rooms", h.CreateRoom)
 	api.PUT("/user/:user", h.Rename)
 	api.GET("/rooms/:room/members", h.Members)

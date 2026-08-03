@@ -6,15 +6,15 @@ import (
 	"os/signal"
 	"syscall"
 
+	"IM-system/gateway/ws"
 	"IM-system/internal/auth"
 	"IM-system/internal/config"
 	"IM-system/internal/database"
 	"IM-system/internal/httpserver"
 	"IM-system/internal/logger"
+	"IM-system/internal/middleware"
 	"IM-system/internal/repository"
 	"IM-system/server"
-	"IM-system/gateway/ws"
-	"IM-system/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,7 +52,7 @@ func main() {
 	// gin服务
 	//r := gin.Default()
 	r := gin.New()
-	
+
 	r.Use(httpserver.Recovery())
 	r.Use(httpserver.RequestLogger())
 

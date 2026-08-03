@@ -1,6 +1,6 @@
 package connection
 
 type Connection interface {
-    Write([]byte) error
-    Close() error
+	Write([]byte) error
+	Close() error
 }

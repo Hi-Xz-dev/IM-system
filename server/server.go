@@ -1,11 +1,11 @@
 package server
 
 import (
+	"IM-system/internal/auth"
 	"IM-system/room"
 	"IM-system/user"
 	"net"
 	"sync"
-	"IM-system/internal/auth"
 )
 
 type Server struct {
@@ -25,12 +25,12 @@ type Server struct {
 	//服务端的 TCP 监听器
 	listener net.Listener
 	//关闭
-	IsShutdown bool
+	IsShutdown  bool
 	authService *auth.Service
 }
 
 // 创建一个server接口
-func NewServer(ip string, port int, authService *auth.Service,) *Server {
+func NewServer(ip string, port int, authService *auth.Service) *Server {
 	return &Server{
 		IP:          ip,
 		Port:        port,

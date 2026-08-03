@@ -1,19 +1,17 @@
 package domain
 
-import(
+import (
 	"time"
 )
 
 type MessageType string
 
-
 const (
-	MessageText   MessageType = "text"
+	MessageText    MessageType = "text"
 	MessagePrivate MessageType = "private"
-	MessageRoom   MessageType = "room"
-	MessageSystem MessageType = "system"
+	MessageRoom    MessageType = "room"
+	MessageSystem  MessageType = "system"
 )
-
 
 type Message struct {
 	ID           string      `json:"id"`

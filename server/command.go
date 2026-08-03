@@ -42,7 +42,7 @@ func (s *Server) DoMessage(usr *user.User, msg string) {
 		s.Where(usr)
 	//房间人数
 	case domain.CmdMembers:
-		s.handlerMenbers(usr, cmd.Args)
+		s.handlerMembers(usr, cmd.Args)
 	default:
 		s.BroadcastSystemMessage(usr, msg)
 	}
@@ -128,7 +128,7 @@ func (s *Server) handlerLeaveRoom(usr *user.User, args []string) {
 }
 
 // 房间成员
-func (s *Server) handlerMenbers(usr *user.User, args []string) {
+func (s *Server) handlerMembers(usr *user.User, args []string) {
 	if len(args) != 1 {
 		_ = s.SendSystemMessage(usr, "用法: members|房间名")
 		return

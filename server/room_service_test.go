@@ -32,13 +32,12 @@ func TestRoomJoinLeave(t *testing.T) {
 
 	users, ok := r.Users[u.ID]
 
-
 	if !ok {
 		t.Fatalf("expected Tom in room")
 	}
 
 	if len(users) != 1 {
-		t.Fatalf("expected 1 user in room, got %d",len(users),)
+		t.Fatalf("expected 1 user in room, got %d", len(users))
 	}
 
 	if users[0] != u {

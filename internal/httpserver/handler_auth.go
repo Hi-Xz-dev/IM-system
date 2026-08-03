@@ -35,16 +35,15 @@ func (h *Handler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, OK(result))
 }
 
-func (h *Handler) Register(c *gin.Context){
+func (h *Handler) Register(c *gin.Context) {
 	var req RegisterRequest
 
-	if err := c.ShouldBindJSON(&req); err != nil{
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest,
-		Fail("invalid request"),
-	)
+			Fail("invalid request"),
+		)
 		return
 	}
-	
 
 	err := h.authService.Register(
 		c.Request.Context(),
@@ -54,13 +53,12 @@ func (h *Handler) Register(c *gin.Context){
 			Nickname: req.Nickname,
 		},
 	)
-	if err != nil{
+	if err != nil {
 		c.JSON(http.StatusBadRequest,
-		Fail(err.Error()),
-	)
+			Fail(err.Error()),
+		)
 		return
 	}
-	
 
 	c.JSON(
 		http.StatusOK,

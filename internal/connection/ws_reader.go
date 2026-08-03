@@ -15,7 +15,7 @@ func NewWSReader(conn *websocket.Conn) *WSReader {
 func (w *WSReader) Read() (string, error) {
 
 	_, msg, err := w.conn.ReadMessage()
-	
+
 	if err != nil {
 		return "", err
 	}

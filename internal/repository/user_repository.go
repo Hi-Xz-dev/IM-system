@@ -42,7 +42,7 @@ func (r *UserRepository) Create(ctx context.Context, user *model.User) error {
 
 // → 登录时根据 username 查用户
 // → 取出 password_hash 做密码校验
-func (r *UserRepository) FindByUsername(ctx context.Context,username string,) (*model.User, error) {
+func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*model.User, error) {
 	user := &model.User{}
 	err := r.db.QueryRowContext(
 		ctx,
@@ -54,9 +54,9 @@ func (r *UserRepository) FindByUsername(ctx context.Context,username string,) (*
 		&user.ID,
 		&user.Username,
 		&user.PasswordHash,
-		&user.Nickname,		
+		&user.Nickname,
 	)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	return user, nil
@@ -65,7 +65,7 @@ func (r *UserRepository) FindByUsername(ctx context.Context,username string,) (*
 func (r *UserRepository) FindByID(
 	ctx context.Context,
 	id int64,
-)(*model.User, error){
+) (*model.User, error) {
 
 	user := &model.User{}
 
@@ -84,7 +84,7 @@ func (r *UserRepository) FindByID(
 		&user.Nickname,
 	)
 
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 

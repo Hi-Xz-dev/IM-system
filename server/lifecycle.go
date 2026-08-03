@@ -12,14 +12,14 @@ func (s *Server) Start() {
 	//在指定 IP 和端口创建 TCP 监听器 listener
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.IP, s.Port))
 	if err != nil {
-		logger.Log.Error("net.Listen err","error", err)
+		logger.Log.Error("net.Listen err", "error", err)
 		return
 	}
 	s.listener = listener
 	logger.Log.Info(
-	"tcp server started",
-	"ip", s.IP,
-	"port", s.Port,
+		"tcp server started",
+		"ip", s.IP,
+		"port", s.Port,
 	)
 	//close listen socket
 	defer listener.Close()
@@ -34,7 +34,7 @@ func (s *Server) Start() {
 		conn, err := listener.Accept()
 		if err != nil {
 			if s.IsShutdown {
-				logger.Log.Info("server shutdown, stop accepting connections",)
+				logger.Log.Info("server shutdown, stop accepting connections")
 				return
 			}
 			logger.Log.Error("accept failed", "error", err)
@@ -44,15 +44,16 @@ func (s *Server) Start() {
 		go s.Handler(conn) //goroutine
 	}
 }
-//关闭全部链接
+
+// 关闭全部链接
 func (s *Server) Shutdown() {
-	s.IsShutdown = true      
+	s.IsShutdown = true
 	if s.listener != nil {
 		_ = s.listener.Close()
 	}
 	s.mapLock.RLock()
-	
-	users := make([]*user.User, 0, )
+
+	users := make([]*user.User, 0)
 	for _, clients := range s.OnlineUsers {
 
 		for _, usr := range clients {

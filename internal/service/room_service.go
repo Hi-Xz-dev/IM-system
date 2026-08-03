@@ -1,8 +1,7 @@
 package service
 
-import(
+import (
 	"IM-system/server"
-	
 )
 
 type RoomService struct {
@@ -11,11 +10,10 @@ type RoomService struct {
 
 func NewRoomService(s *server.Server) *RoomService {
 	return &RoomService{
-		server : s,
+		server: s,
 	}
 }
 
-func (rs *RoomService) GetRooms() []server.RoomInfo{
+func (rs *RoomService) GetRooms() []server.RoomInfo {
 	return rs.server.GetRooms()
-} 
-
+}

@@ -171,6 +171,29 @@ TCP / WebSocket 连接后第一条消息必须发送 `auth|<JWT Token>`，认证
 
 ---
 
+## Tests
+
+```bash
+go test ./...         # 全部测试
+go test -race ./...   # + 竞态检测
+go test -bench=. -benchmem ./internal/protocol/  # 性能基准
+```
+
+| 文件 | 测试函数 | 覆盖内容 |
+|---|---|---|
+| `protocol/parser_test.go` | `TestParse` | 12 个命令 + 空输入 |
+| `protocol/parser_test.go` | `BenchmarkParse` | 26.78 ns/op, 48 B/op |
+| `protocol/message_test.go` | `TestEncodeDecodeMessage` | JSON 消息编解码 |
+| `server/server_test.go` | `TestOnlineOffline` | 用户上下线 |
+| `server/server_test.go` | `TestOfflineDoubleCall` | 下线幂等 (IsClosed) |
+| `server/room_service_test.go` | `TestRoomJoinLeave` | 房间创建/加入/退出/自动销毁 |
+| `server/room_service_test.go` | `TestRoomChat` | 群聊消息投递 |
+| `server/user_service_test.go` | `TestRenameSync` | 改名 + 房间成员表同步 |
+| `server/message_test.go` | `TestPrivateChat` | 私聊消息投递 |
+| `server/disconnect_test.go` | `TestListenDisconnect` | 断连通知消费 |
+
+---
+
 ## Concurrency Model
 
 ```

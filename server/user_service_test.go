@@ -71,3 +71,4 @@ func TestRenameSync(t *testing.T) {
 		)
 	}
 }
+

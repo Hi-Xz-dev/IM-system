@@ -196,6 +196,9 @@ go test -bench=. -benchmem ./internal/protocol/  # 性能基准
 | `server/user_service_test.go` | `TestRenameSync` | 改名 + 房间成员表同步 |
 | `server/message_test.go` | `TestPrivateChat` | 私聊消息投递 |
 | `server/disconnect_test.go` | `TestListenDisconnect` | 断连通知消费 |
+| `user/user_test.go` | `TestUserSendMessage` | SendMsg → ListenMessage 管道 |
+| `user/user_test.go` | `TestUserSendMessageQueueFull` | Channel 满返回 error |
+| `user/user_test.go` | `TestListenMessage` | 写失败 → Disconnect 通知 |
 
 ---
 

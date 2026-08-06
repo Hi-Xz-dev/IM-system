@@ -37,7 +37,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 func (h *Handler) Register(c *gin.Context) {
 	var req RegisterRequest
-
+	//JSON->GO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest,
 			Fail("invalid request"),

@@ -16,7 +16,7 @@ func HashPassword(password string) (string, error) {
 	return string(hash), nil
 }
 
-// 把 bcrypt 的结果返回出来不做判断
+// 再次加密 与数据库Hash比对
 func CheckPassword(passwordHash, password string) error {
 	return bcrypt.CompareHashAndPassword(
 		[]byte(passwordHash),

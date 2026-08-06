@@ -49,7 +49,7 @@ func NewService(userRepo *repository.UserRepository, jwtService *JWTService) *Se
 		jwtService: jwtService,
 	}
 }
-
+//注册
 func (s *Service) Register(ctx context.Context, input RegisterInput) error {
 	input.Username = strings.TrimSpace(input.Username)
 	input.Nickname = strings.TrimSpace(input.Nickname)
@@ -88,9 +88,10 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) error {
 
 	return nil
 }
-
+//登录
 func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, error) {
 	input.Username = strings.TrimSpace(input.Username)
+
 	if input.Username == "" {
 		return nil, ErrInvalidUsername
 	}
@@ -122,7 +123,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, er
 		Token:    token,
 	}, nil
 }
-
+//拿身份证验证身份
 func (s *Service) Authenticate(ctx context.Context, token string) (*model.User, error) {
 
 	userID, err := s.jwtService.ParseToken(token)

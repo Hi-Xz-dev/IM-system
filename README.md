@@ -181,9 +181,14 @@ go test -bench=. -benchmem ./internal/protocol/  # 性能基准
 
 | 文件 | 测试函数 | 覆盖内容 |
 |---|---|---|
-| `protocol/parser_test.go` | `TestParse` | 12 个命令 + 空输入 |
-| `protocol/parser_test.go` | `BenchmarkParse` | 26.78 ns/op, 48 B/op |
-| `protocol/message_test.go` | `TestEncodeDecodeMessage` | JSON 消息编解码 |
+| `internal/auth/service_test.go` | `TestRegister` | 注册 + bcrypt 哈希验证 |
+| `internal/auth/service_test.go` | `TestRegisterDuplicate` | 重复注册拒绝 |
+| `internal/auth/service_test.go` | `TestLogin` | 登录成功 → JWT Token |
+| `internal/auth/service_test.go` | `TestLoginWrongPassword` | 错误密码拒绝 |
+| `internal/auth/service_test.go` | `TestAuthenticate` | Token 解析 → 查 DB |
+| `internal/protocol/parser_test.go` | `TestParse` | 12 个命令 + 空输入 |
+| `internal/protocol/parser_test.go` | `BenchmarkParse` | 26.78 ns/op, 48 B/op |
+| `internal/protocol/message_test.go` | `TestEncodeDecodeMessage` | JSON 消息编解码 |
 | `server/server_test.go` | `TestOnlineOffline` | 用户上下线 |
 | `server/server_test.go` | `TestOfflineDoubleCall` | 下线幂等 (IsClosed) |
 | `server/room_service_test.go` | `TestRoomJoinLeave` | 房间创建/加入/退出/自动销毁 |

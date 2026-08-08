@@ -191,8 +191,13 @@ go test -bench=. -benchmem ./internal/protocol/  # 性能基准
 | `internal/protocol/message_test.go` | `TestEncodeDecodeMessage` | JSON 消息编解码 |
 | `server/server_test.go` | `TestOnlineOffline` | 用户上下线 |
 | `server/server_test.go` | `TestOfflineDoubleCall` | 下线幂等 (IsClosed) |
-| `server/room_service_test.go` | `TestRoomJoinLeave` | 房间创建/加入/退出/自动销毁 |
-| `server/room_service_test.go` | `TestRoomChat` | 群聊消息投递 |
+| `server/room_manager_test.go` | `TestRoomJoinLeave` | 房间创建/加入/退出/自动销毁 |
+| `server/room_manager_test.go` | `TestRoomChat` | 群聊消息投递 |
+| `server/room_manager_test.go` | `TestCreateDuplicateRoom` | 重复创建拒绝 |
+| `server/room_manager_test.go` | `TestJoinNonExistentRoom` | 加入不存在房间拒绝 |
+| `server/room_manager_test.go` | `TestLeaveNonJoinedRoom` | 退出未加入房间拒绝 |
+| `server/room_manager_test.go` | `TestConcurrentRoomJoin` | 10 goroutine 并发加入 |
+| `server/room_manager_test.go` | `TestConcurrentOffline` | 10 goroutine 并发下线 |
 | `server/user_service_test.go` | `TestRenameSync` | 改名 + 房间成员表同步 |
 | `server/message_test.go` | `TestPrivateChat` | 私聊消息投递 |
 | `server/disconnect_test.go` | `TestListenDisconnect` | 断连通知消费 |

@@ -1,9 +1,11 @@
 package server
 
 import (
+	"sync"
 	"testing"
 	"time"
 
+	"IM-system/internal/logger"
 	"IM-system/room"
 	"IM-system/user"
 )
@@ -271,6 +273,124 @@ func TestLeaveNonJoinedRoom(t *testing.T) {
 	case <-time.After(time.Second):
 
 		t.Fatal("expected system message")
+	}
+
+}
+
+func TestConcurrentRoomJoin(t *testing.T) {
+
+	logger.Init()
+
+	s := &Server{
+		Rooms: make(map[string]*room.Room),
+	}
+
+	creator := &user.User{
+		ID:          0,
+		Nickname:    "creator",
+		C:           make(chan string, 10),
+		JoinedRooms: make(map[string]struct{}),
+	}
+
+	s.CreateRoom(
+		creator,
+		"room1",
+	)
+
+	var wg sync.WaitGroup
+
+	const n = 10
+
+	wg.Add(n)
+
+	for i := 0; i < n; i++ {
+
+		go func(id int) {
+
+			defer wg.Done()
+
+			u := &user.User{
+				ID:          int64(id + 1),
+				Nickname:    "user",
+				C:           make(chan string, 10),
+				JoinedRooms: make(map[string]struct{}),
+			}
+
+			s.JoinRoom(
+				u,
+				"room1",
+			)
+
+		}(i)
+
+	}
+
+	wg.Wait()
+
+	r := s.Rooms["room1"]
+
+	if len(r.Users) != n+1 {
+		t.Fatalf(
+			"expected %d users, got %d",
+			n+1,
+			len(r.Users),
+		)
+	}
+
+}
+
+func TestConcurrentOffline(t *testing.T) {
+
+	s := &Server{
+		Rooms:       make(map[string]*room.Room),
+		OnlineUsers: make(map[int64][]*user.User),
+		Message:     make(chan string, 100),
+	}
+
+	u := &user.User{
+		ID:          1,
+		Nickname:    "Tom",
+		C:           make(chan string, 100),
+		JoinedRooms: make(map[string]struct{}),
+	}
+
+	s.Online(u)
+
+	s.CreateRoom(
+		u,
+		"room1",
+	)
+
+	var wg sync.WaitGroup
+
+	const n = 10
+
+	wg.Add(n)
+
+	for i := 0; i < n; i++ {
+
+		go func() {
+
+			defer wg.Done()
+
+			s.Offline(u)
+
+		}()
+
+	}
+
+	wg.Wait()
+
+	if !u.IsClosed {
+		t.Fatal("user should be closed")
+	}
+
+	if _, ok := s.OnlineUsers[u.ID]; ok {
+		t.Fatal("user still online")
+	}
+
+	if _, ok := s.Rooms["room1"]; ok {
+		t.Fatal("room still exists")
 	}
 
 }

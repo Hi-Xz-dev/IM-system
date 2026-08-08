@@ -102,9 +102,9 @@ func TestRoomChat(t *testing.T) {
 		Users: make(map[int64][]*user.User),
 	}
 
-	r.Users[alice.ID] = []*user.User{alice,}
+	r.Users[alice.ID] = []*user.User{alice}
 
-	r.Users[bob.ID] = []*user.User{bob,}
+	r.Users[bob.ID] = []*user.User{bob}
 
 	s := &Server{
 		Rooms: make(map[string]*room.Room),
@@ -146,6 +146,131 @@ func TestRoomChat(t *testing.T) {
 
 	case <-time.After(200 * time.Millisecond):
 
+	}
+
+}
+
+func TestCreateDuplicateRoom(t *testing.T) {
+
+	s := &Server{
+		Rooms: make(map[string]*room.Room),
+	}
+
+	u := &user.User{
+		ID:          1,
+		Nickname:    "Tom",
+		C:           make(chan string, 10),
+		JoinedRooms: make(map[string]struct{}),
+	}
+
+	s.CreateRoom(
+		u,
+		"room1",
+	)
+
+	if len(s.Rooms) != 1 {
+		t.Fatal("room not created")
+	}
+
+	s.CreateRoom(
+		u,
+		"room1",
+	)
+
+	if len(s.Rooms) != 1 {
+		t.Fatal("duplicate room created")
+	}
+}
+
+func TestJoinNonExistentRoom(t *testing.T) {
+
+	s := &Server{
+		Rooms: make(map[string]*room.Room),
+	}
+
+	u := &user.User{
+		ID:          1,
+		Nickname:    "Tom",
+		C:           make(chan string, 10),
+		JoinedRooms: make(map[string]struct{}),
+	}
+
+	s.JoinRoom(
+		u,
+		"room1",
+	)
+
+	// 用户不应该加入不存在的房间
+	if u.InRoom("room1") {
+		t.Fatal("user joined non-existent room")
+	}
+
+	// 应该收到系统提示
+	select {
+
+	case msg := <-u.C:
+
+		if msg == "" {
+			t.Fatal("empty system message")
+		}
+
+	case <-time.After(time.Second):
+
+		t.Fatal("expected system message")
+	}
+
+}
+
+func TestLeaveNonJoinedRoom(t *testing.T) {
+
+	s := &Server{
+		Rooms: make(map[string]*room.Room),
+	}
+
+	u1 := &user.User{
+		ID:          1,
+		Nickname:    "Tom",
+		C:           make(chan string, 10),
+		JoinedRooms: make(map[string]struct{}),
+	}
+
+	u2 := &user.User{
+		ID:          2,
+		Nickname:    "Jerry",
+		C:           make(chan string, 10),
+		JoinedRooms: make(map[string]struct{}),
+	}
+
+	s.CreateRoom(
+		u1,
+		"room1",
+	)
+
+	s.LeaveRoom(
+		u2,
+		"room1",
+	)
+
+	if u2.InRoom("room1") {
+		t.Fatal("user should not join room")
+	}
+
+	if _, ok := s.Rooms["room1"].Users[u2.ID]; ok {
+		t.Fatal("user should not be in room")
+	}
+
+	// 应该收到系统提示
+	select {
+
+	case msg := <-u2.C:
+
+		if msg == "" {
+			t.Fatal("empty system message")
+		}
+
+	case <-time.After(time.Second):
+
+		t.Fatal("expected system message")
 	}
 
 }

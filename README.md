@@ -187,7 +187,20 @@ go test -bench=. -benchmem ./internal/protocol/  # 性能基准
 | `internal/auth/service_test.go` | `TestLoginWrongPassword` | 错误密码拒绝 |
 | `internal/auth/service_test.go` | `TestAuthenticate` | Token 解析 → 查 DB |
 | `internal/protocol/parser_test.go` | `TestParse` | 12 个命令 + 空输入 |
-| `internal/protocol/parser_test.go` | `BenchmarkParse` | 26.78 ns/op, 48 B/op |
+| `internal/protocol/parser_test.go` | `BenchmarkParse` | 26.78 ns/op, 48 B/op, 1 allocs/op |
+
+## Benchmark Results (Apple M4)
+
+| Benchmark | 指标 | 说明 |
+|---|---|---|
+| `LeaveRoomUnsafe` | 19 ns/op, 0 allocs/op | 状态删除极低成本，无清理瓶颈 |
+| `JoinRoomUnsafe` | 376 ns/op, 4 allocs/op | 状态更新 + 成员关系维护开销较小 |
+| `BroadcastMessage` (1000 users) | 58.6 µs/op | 广播路径高两个数量级，瓶颈在消息投递 |
+
+**Future Optimization**
+- Profile message encoding cost
+- Optimize fan-out delivery path
+- Evaluate async message dispatch
 | `internal/protocol/message_test.go` | `TestEncodeDecodeMessage` | JSON 消息编解码 |
 | `server/server_test.go` | `TestOnlineOffline` | 用户上下线 |
 | `server/server_test.go` | `TestOfflineDoubleCall` | 下线幂等 (IsClosed) |

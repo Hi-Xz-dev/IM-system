@@ -15,7 +15,7 @@ type User struct {
 
 	ActiveTime int64 //心跳
 
-	JoinedRooms map[string]struct{} //用户加入哪些房间
+	JoinedRooms map[int64]struct{} //用户加入哪些房间
 
 	IsClosed bool
 }
@@ -30,7 +30,7 @@ func NewUser(conn connection.Connection, id int64, nickname string, addr string)
 		C:           make(chan string, 100),
 		conn:        conn,
 		ActiveTime:  time.Now().Unix(),
-		JoinedRooms: make(map[string]struct{}),
+		JoinedRooms: make(map[int64]struct{}),
 	}
 	return u
 }
@@ -55,8 +55,8 @@ func (u *User) SendMsg(msg string) error {
 
 	default:
 		return fmt.Errorf(
-			"user %s send queue full",
-			u.Nickname,
+			"user %v send queue full",
+			u.ID,
 		)
 	}
 }
@@ -78,15 +78,15 @@ func (u *User) ListenMessage(disconnect chan<- *User) {
 	}
 }
 
-func (u *User) InRoom(roomName string) bool {
-	_, ok := u.JoinedRooms[roomName]
+func (u *User) InRoom(roomID int64) bool {
+	_, ok := u.JoinedRooms[roomID]
 	return ok
 }
 
-func (u *User) AddRoom(roomName string) {
-	u.JoinedRooms[roomName] = struct{}{}
+func (u *User) AddRoom(roomID int64) {
+	u.JoinedRooms[roomID] = struct{}{}
 }
 
-func (u *User) RemoveRoom(roomName string) {
-	delete(u.JoinedRooms, roomName)
+func (u *User) RemoveRoom(roomID int64) {
+	delete(u.JoinedRooms, roomID)
 }

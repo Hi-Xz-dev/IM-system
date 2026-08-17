@@ -13,7 +13,7 @@
 - **Private Messaging** — 基于用户 ID 的点对点私聊
 - **JSON Message Protocol** — `domain.Message` 统一全部消息输出，前端一套解析
 - **Concurrent-Safe Message Pipeline** — `SendMsg → User.C → ListenMessage → conn.Write` 单 goroutine 写路径
-- **MySQL Persistence** — 用户注册登录，Repository 数据访问层
+- **MySQL Persistence** — 用户 + 房间持久化，`RoomRepository` / `MessageRepository` 数据访问层
 
 ---
 
@@ -86,11 +86,11 @@ IM-system/
 │   ├── httpserver/                 # Gin 路由 + Handler + Middleware + DTO
 │   ├── logger/                     # slog 结构化日志
 │   ├── middleware/                  # JWT 鉴权中间件
-│   ├── model/                      # DB 模型
+│   ├── model/                      # DB 模型 (User / Room)
 │   ├── protocol/                   # 协议解析 + JSON 编码
-│   └── repository/                 # 数据访问层
+│   └── repository/                 # 用户 / 房间 / 消息数据访问层
 ├── server/                         # TCP 核心 + 业务逻辑
-│   ├── server.go                   # Server struct
+│   ├── server.go                   # Server struct (Rooms/Profiles/roomRepo)
 │   ├── lifecycle.go                # Start / Shutdown
 │   ├── handler.go                  # TCP 连接入口 (认证 → Online)
 │   ├── read_loop.go                # ServerReader 统一读循环
@@ -98,11 +98,13 @@ IM-system/
 │   ├── broadcaster.go              # 全服广播 + ListenMessager
 │   ├── message.go                  # SendSystem / SendPrivate / SendRoom
 │   ├── command.go                  # DoMessage + 协议 handler
-│   ├── room_manager.go             # 房间操作 (TCP + HTTP 共用内核)
+│   ├── room_manager.go             # 房间操作 (roomID 索引, TCP + HTTP 共用内核)
 │   ├── user_service.go             # 用户操作 (Online/Offline/私聊/改名)
+│   ├── user_profile.go             # UserProfile (昵称权威来源)
 │   └── dto.go                      # RoomInfo / OnlineUser
 ├── user/user.go                    # User 模型 (多房间, Channel, 连接抽象)
-├── room/room.go                    # Room 模型
+├── room/room.go                    # Room 模型 (ID + Name + Users)
+├── migrations/                     # SQL 迁移 (users / rooms)
 └── web/index.html                  # Vue 3 聊天控制台
 ```
 
@@ -134,11 +136,11 @@ TCP / WebSocket 连接后第一条消息必须发送 `auth|<JWT Token>`，认证
 | 改名 | `rename\|新名字` | 修改昵称并全服广播 |
 | 在线列表 | `who` | 查询在线用户 |
 | 房间列表 | `rooms` | 所有房间及人数 |
-| 创建房间 | `create\|房间名` | 创建新房间 |
-| 加入房间 | `join\|房间名` | 加入已有房间 |
-| 退出房间 | `leave\|房间名` | 退出房间 |
-| 房间群聊 | `room\|房间名\|内容` | 房间内广播 |
-| 房间成员 | `members\|房间名` | 查看成员 |
+| 创建房间 | `create\|房间名` | 创建新房间（内部写 DB 拿 roomID） |
+| 加入房间 | `join\|房间ID` | 加入已有房间 |
+| 退出房间 | `leave\|房间ID` | 退出房间 |
+| 房间群聊 | `room\|房间ID\|内容` | 房间内广播 |
+| 房间成员 | `members\|房间ID` | 查看成员 |
 | 当前位置 | `where` | 已加入的房间 |
 
 ---
@@ -162,11 +164,11 @@ TCP / WebSocket 连接后第一条消息必须发送 `auth|<JWT Token>`，认证
 |---|---|---|
 | GET | `/api/online-users` | 在线用户 (ID + 昵称) |
 | GET | `/api/rooms` | 房间列表 |
-| GET | `/api/rooms/:room/members` | 房间成员 |
+| GET | `/api/rooms/:roomID/members` | 房间成员 |
 | GET | `/api/users/:user/rooms` | 用户已加入的房间 |
-| POST | `/api/rooms` | 创建房间 |
-| POST | `/api/rooms/:room/members/:user` | 加入房间 |
-| DELETE | `/api/rooms/:room/members/:user` | 退出房间 |
+| POST | `/api/rooms` | 创建房间 `{"name":"..."}` |
+| POST | `/api/rooms/:roomID/members` | 加入房间 |
+| DELETE | `/api/rooms/:roomID/members` | 退出房间 |
 | PUT | `/api/user/:user` | 改名 |
 
 ---
@@ -217,6 +219,18 @@ go test -bench=. -benchmem ./internal/protocol/  # 性能基准
 | `user/user_test.go` | `TestUserSendMessage` | SendMsg → ListenMessage 管道 |
 | `user/user_test.go` | `TestUserSendMessageQueueFull` | Channel 满返回 error |
 | `user/user_test.go` | `TestListenMessage` | 写失败 → Disconnect 通知 |
+
+---
+
+## Data Model
+
+| 结构 | 索引 | 说明 |
+|---|---|---|
+| `Rooms` | `map[int64]*room.Room` | roomID 索引（DB 自增主键），房间名是业务属性 |
+| `OnlineUsers` | `map[int64][]*user.User` | 按 userID 聚合，多端 session 列表 |
+| `Profiles` | `map[int64]*UserProfile` | 昵称权威来源，session 不存昵称 |
+
+**昵称迁移**：`Nickname` 从 session 迁到 `Profile`，`Rename` 只需更新 Profile 一处，不再遍历同步所有 session。消息展示时统一 `GetNickname(userID)` 从 Profile 取。
 
 ---
 

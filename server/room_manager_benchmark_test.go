@@ -4,130 +4,100 @@ import (
 	"testing"
 
 	"IM-system/internal/logger"
+	"IM-system/room"
 	"IM-system/user"
 )
 
 // 用户加入房间时，状态维护成本是多少
 func BenchmarkJoinRoomUnsafe(b *testing.B) {
-
 	logger.Init()
 
 	s := NewServer(
 		"127.0.0.1",
 		8080,
 		nil,
+		nil,
 	)
 
-	creator := &user.User{
-		ID:          1,
-		Nickname:    "creator",
-		C:           make(chan string, 1000),
-		JoinedRooms: make(map[string]struct{}),
-	}
-
-	s.CreateRoom(
-		creator,
-		"room1",
-	)
-
+	const roomID int64 = 1
+	const roomName = "room1"
 	const roomSize = 1000
 
-	for i := range roomSize {
+	r := room.NewRoom(
+		roomID,
+		roomName,
+	)
 
+	s.AddRoom(r)
+
+	for i := range roomSize {
 		u := &user.User{
-			ID:          int64(i + 2),
+			ID:          int64(i + 1),
 			Nickname:    "user",
-			JoinedRooms: make(map[string]struct{}),
+			JoinedRooms: make(map[int64]struct{}),
 		}
 
 		s.mapLock.Lock()
-
-		s.joinRoomUnsafe(
-			u,
-			"room1",
-		)
-
+		s.joinRoomUnsafe(u, roomID)
 		s.mapLock.Unlock()
 	}
 
-	id := int64(roomSize + 2)
+	id := int64(roomSize + 1)
 
 	for b.Loop() {
 		u := &user.User{
 			ID:          id,
 			Nickname:    "benchmark-user",
-			JoinedRooms: make(map[string]struct{}),
+			JoinedRooms: make(map[int64]struct{}),
 		}
+
 		id++
 
 		s.mapLock.Lock()
-
-		s.joinRoomUnsafe(
-			u,
-			"room1",
-		)
-
+		s.joinRoomUnsafe(u, roomID)
 		s.mapLock.Unlock()
-
 	}
-
 }
 
-func BenchmarkLeaveRoomUnsafe(b *testing.B) {
+func BenchmarkLeaveJoinRoomUnsafe(b *testing.B) {
 	s := NewServer(
 		"127.0.0.1",
 		8080,
 		nil,
+		nil,
 	)
+
+	const roomID int64 = 1
+
+	r := room.NewRoom(
+		roomID,
+		"room1",
+	)
+	s.AddRoom(r)
 
 	creator := &user.User{
 		ID:          1,
 		Nickname:    "creator",
-		JoinedRooms: make(map[string]struct{}),
+		JoinedRooms: make(map[int64]struct{}),
 	}
 
-	s.CreateRoom(creator, "room1")
-
-	const userCount = 10000
-
-	users := make([]*user.User, userCount)
-
-	for i := range userCount {
-
-		u := &user.User{
-			ID:          int64(i + 2),
-			Nickname:    "user",
-			JoinedRooms: make(map[string]struct{}),
-		}
-
-		users[i] = u
-
-		s.mapLock.Lock()
-		s.joinRoomUnsafe(u, "room1")
-		s.mapLock.Unlock()
-
+	u := &user.User{
+		ID:          2,
+		Nickname:    "benchmark-user",
+		JoinedRooms: make(map[int64]struct{}),
 	}
 
-	index := 0
+	s.mapLock.Lock()
+	s.joinRoomUnsafe(u, roomID)
+	s.joinRoomUnsafe(creator, roomID)
+	s.mapLock.Unlock()
 
 	for b.Loop() {
-
-		u := users[index]
-
-		index++
-
-		if index == userCount {
-			index = 0
-		}
 		s.mapLock.Lock()
 
-		s.leaveRoomUnsafe(
-			u,
-			"room1",
-		)
+		s.leaveRoomUnsafe(u, roomID)
+		s.joinRoomUnsafe(u, roomID)
 
 		s.mapLock.Unlock()
-
 	}
-
 }

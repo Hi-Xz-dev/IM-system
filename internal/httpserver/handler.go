@@ -2,11 +2,16 @@ package httpserver
 
 import (
 	"IM-system/internal/auth"
+	"IM-system/internal/repository"
 	"IM-system/internal/service"
 	"IM-system/server"
-	"github.com/gin-gonic/gin"
+	"IM-system/internal/logger"
+	
+	"errors"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -17,10 +22,14 @@ type Handler struct {
 
 // 构造函数 把 main.go 里的 s 注入到 Handler 里面
 // 这一步叫：依赖注入 Dependency Injection
-func NewHandler(s *server.Server, authService *auth.Service) *Handler {
+func NewHandler(
+	s *server.Server,
+	authService *auth.Service,
+	roomRepo *repository.RoomRepository,
+) *Handler {
 	return &Handler{
 		server:      s,
-		roomService: service.NewRoomService(s),
+		roomService: service.NewRoomService(s, roomRepo),
 		authService: authService,
 	}
 }
@@ -167,16 +176,43 @@ func (h *Handler) CreateRoom(c *gin.Context) {
 		return
 	}
 
-	userIDValue, exists := c.Get("user_id")
-
-	if !exists {
-		c.JSON(http.StatusUnauthorized, Fail("not login"))
+	userID, ok := getUserID(c)
+	if !ok {
+		c.JSON(
+			http.StatusUnauthorized,
+			Fail("not login"),
+		)
 		return
 	}
 
-	userID := userIDValue.(int64)
+	r, err := h.roomService.CreateRoomRecord(
+		c.Request.Context(),
+		req.Name,
+	)
+	if err != nil {
+		if errors.Is(err, repository.ErrRoomAlreadyExists) {
+			c.JSON(
+				http.StatusConflict,
+				Fail("room already exists"),
+			)
+			return
+		}
 
-	msg, ok := h.server.CreateRoomH(userID, req.Name)
+		logger.Log.Error(
+			"create room record failed",
+			"user_id", userID,
+			"room_name", req.Name,
+			"error", err,
+		)
+
+		c.JSON(
+			http.StatusInternalServerError,
+			Fail("create room failed"),
+		)
+		return
+	}
+
+	msg, ok := h.server.CreateRoomRuntime(userID, r.ID, r.Name)
 
 	if !ok {
 		c.JSON(http.StatusConflict, Fail(msg))

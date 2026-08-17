@@ -30,7 +30,7 @@ func TestUserSendMessage(t *testing.T) {
 		ID:          1,
 		C:           make(chan string, 100),
 		conn:        conn,
-		JoinedRooms: make(map[string]struct{}),
+		JoinedRooms: make(map[int64]struct{}),
 	}
 
 	disconnect := make(chan *User, 1)

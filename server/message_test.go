@@ -2,6 +2,7 @@ package server
 
 import (
 	"IM-system/internal/domain"
+	"IM-system/internal/logger"
 	"IM-system/internal/protocol"
 	"IM-system/user"
 
@@ -23,6 +24,9 @@ func (f *fakeConnection) Close() error {
 }
 
 func TestPrivateChat(t *testing.T) {
+
+	logger.Init()
+
 	aliceConn := &fakeConnection{
 		messages: make(chan string, 10),
 	}
@@ -44,18 +48,39 @@ func TestPrivateChat(t *testing.T) {
 		"Bob",
 		"127.0.0.2",
 	)
+	
+	s := NewServer(
+		"127.0.0.1",
+		8080,
+		nil,
+		nil,
+	)
 
-	s := &Server{
-		OnlineUsers: make(map[int64][]*user.User),
-	}
+	s.mapLock.Lock()
 
-	s.OnlineUsers[1] = []*user.User{
+	s.OnlineUsers[alice.ID] = []*user.User{
 		alice,
 	}
 
-	s.OnlineUsers[2] = []*user.User{
+	s.OnlineUsers[bob.ID] = []*user.User{
 		bob,
 	}
+
+	s.Profiles[alice.ID] = &UserProfile{
+		ID:       alice.ID,
+		Nickname: alice.Nickname,
+	}
+
+	s.Profiles[bob.ID] = &UserProfile{
+		ID:       bob.ID,
+		Nickname: bob.Nickname,
+	}
+
+	s.mapLock.Unlock()
+
+	s.Online(alice)
+
+	s.Online(bob)
 
 	disconnect := make(chan *user.User, 1)
 
@@ -81,7 +106,7 @@ func TestPrivateChat(t *testing.T) {
 				err,
 			)
 		}
-		
+
 		if msg.Type != domain.MessagePrivate {
 			t.Fatalf(
 				"expected private message, got %v",

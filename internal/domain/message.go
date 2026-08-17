@@ -19,7 +19,8 @@ type Message struct {
 	From         int64       `json:"from"`
 	FromNickname string      `json:"from_nickname"`
 	To           int64       `json:"to,omitempty"`
-	RoomID       string      `json:"room_id,omitempty"`
+	RoomID       int64       `json:"room_id,omitempty"`
+	RoomName     string      `json:"room_name,omitempty"`
 	Content      string      `json:"content"`
 	Time         time.Time   `json:"time"`
 }

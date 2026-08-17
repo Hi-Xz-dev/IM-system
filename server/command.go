@@ -2,8 +2,13 @@ package server
 
 import (
 	"IM-system/internal/domain"
+	"IM-system/internal/logger"
 	"IM-system/internal/protocol"
+	"IM-system/internal/repository"
 	"IM-system/user"
+
+	"errors"
+	"strconv"
 )
 
 // 用户处理信息业务自定义IM协议 协议设计
@@ -51,23 +56,31 @@ func (s *Server) DoMessage(usr *user.User, msg string) {
 // 拆handler-XX函数
 func (s *Server) handlerWho(usr *user.User) {
 	s.mapLock.RLock()
-	users := make(map[int64]*user.User)
 
-	for _, clients := range s.OnlineUsers {
+	users := make([]OnlineUser, 0, len(s.OnlineUsers))
 
-		for _, cli := range clients {
-
-			users[cli.ID] = cli
+	for userID := range s.OnlineUsers {
+		profile, ok := s.Profiles[userID]
+		if !ok {
+			continue
 		}
+
+		users = append(users, OnlineUser{
+			ID:       userID,
+			Nickname: profile.Nickname,
+		})
 	}
 
 	s.mapLock.RUnlock()
 
-	for _, cli := range users {
-		_ = s.SendSystemMessage(usr, cli.Nickname+" 在线")
+	for _, u := range users {
+		_ = s.SendSystemMessage(
+			usr,
+			u.Nickname+" 在线",
+		)
 	}
-
 }
+
 func (s *Server) handlerRename(usr *user.User, args []string) {
 	if len(args) != 1 {
 		_ = s.SendSystemMessage(usr, "用法: rename|新名字")
@@ -92,46 +105,99 @@ func (s *Server) handlerPrivateChat(usr *user.User, args []string) {
 
 func (s *Server) handlerCreate(usr *user.User, args []string) {
 	if len(args) != 1 {
-		_ = s.SendSystemMessage(usr, "用法: create|房间名")
+		s.SendSystemMessage(usr, "用法: create|房间名")
 		return
 	}
 
-	s.CreateRoom(usr, args[0])
+	if err := s.CreateRoom(usr, args[0]); err != nil {
+
+		if errors.Is(err, repository.ErrRoomAlreadyExists) {
+			s.SendSystemMessage(
+				usr,
+				"房间名已存在",
+			)
+			return
+		}
+
+		logger.Log.Error(
+			"create room failed",
+			"user_id", usr.ID,
+			"room_name", args[0],
+			"error", err,
+		)
+		s.SendSystemMessage(
+			usr,
+			"创建房间失败，请稍后重试",
+		)
+		return
+	}
+
+	s.SendSystemMessage(
+		usr,
+		"创建房间成功",
+	)
 }
 func (s *Server) handlerJoin(usr *user.User, args []string) {
 	if len(args) != 1 {
-		_ = s.SendSystemMessage(usr, "用法: join|房间名")
+		_ = s.SendSystemMessage(usr, "用法: join|房间ID")
 		return
 	}
 
-	s.JoinRoom(usr, args[0])
+	roomID, err := strconv.ParseInt(args[0], 10, 64)
+
+	if err != nil {
+		_ = s.SendSystemMessage(usr, "房间ID格式错误")
+		return
+	}
+
+	s.JoinRoom(usr, roomID)
 }
 
 // 房间聊天
 func (s *Server) handlerRoomchat(usr *user.User, args []string) {
 	if len(args) != 2 {
-		_ = s.SendSystemMessage(usr, "用法: room|房间名|消息内容")
+		_ = s.SendSystemMessage(usr, "用法: room|房间ID|消息内容")
 		return
 	}
 
-	s.RoomChat(usr, args[0], args[1])
+	roomID, err := strconv.ParseInt(args[0], 10, 64)
+
+	if err != nil {
+		_ = s.SendSystemMessage(usr, "房间ID格式错误")
+		return
+	}
+	s.RoomChat(usr, roomID, args[1])
 }
 
 // 离开房间
 func (s *Server) handlerLeaveRoom(usr *user.User, args []string) {
 	if len(args) != 1 {
-		_ = s.SendSystemMessage(usr, "用法: leave|房间名")
+		_ = s.SendSystemMessage(usr, "用法: leave|房间ID")
 		return
 	}
 
-	s.LeaveRoom(usr, args[0])
+	roomID, err := strconv.ParseInt(args[0], 10, 64)
+
+	if err != nil {
+		_ = s.SendSystemMessage(usr, "房间ID格式错误")
+		return
+	}
+
+	s.LeaveRoom(usr, roomID)
 }
 
 // 房间成员
 func (s *Server) handlerMembers(usr *user.User, args []string) {
 	if len(args) != 1 {
-		_ = s.SendSystemMessage(usr, "用法: members|房间名")
+		_ = s.SendSystemMessage(usr, "用法: members|房间ID")
 		return
 	}
-	s.Members(usr, args[0])
+	roomID, err := strconv.ParseInt(args[0], 10, 64)
+
+	if err != nil {
+		_ = s.SendSystemMessage(usr, "房间ID格式错误")
+		return
+	}
+
+	s.Members(usr, roomID)
 }

@@ -4,48 +4,74 @@ import (
 	"testing"
 
 	"IM-system/user"
+	"IM-system/room"
 )
 
 func TestRenameSync(t *testing.T) {
-	s := NewServer("127.0.0.1", 8080, nil)
-	// 模拟 TCP连接
+	s := NewServer(
+		"127.0.0.1",
+		8080,
+		nil,
+		nil,
+	)
+
+	const roomID int64 = 1
+
 	tcpUser := &user.User{
 		ID:          1,
 		Nickname:    "Tom",
 		Addr:        "127.0.0.1:10001",
 		C:           make(chan string, 100),
-		JoinedRooms: make(map[string]struct{}),
+		JoinedRooms: make(map[int64]struct{}),
 	}
-	// 模拟 WebSocket连接
+
 	wsUser := &user.User{
 		ID:          1,
 		Nickname:    "Tom",
 		Addr:        "127.0.0.1:10002",
 		C:           make(chan string, 100),
-		JoinedRooms: make(map[string]struct{}),
+		JoinedRooms: make(map[int64]struct{}),
 	}
 
+	// 同一个用户的两个 session 上线
 	s.Online(tcpUser)
-
 	s.Online(wsUser)
 
-	s.CreateRoom(tcpUser, "golang")
+	// 创建运行时房间
+	r := room.NewRoom(
+		roomID,
+		"golang",
+	)
 
-	s.Rename(tcpUser, "Jerry")
+	s.AddRoom(r)
 
-	// 全局名字应该更新
-	if tcpUser.Nickname != "Jerry" {
-		t.Fatalf("expected user Jerry online")
+	// 这里只让 TCP session 加入房间
+	s.JoinRoom(
+		tcpUser,
+		roomID,
+	)
+
+	// 通过 TCP session 发起改名
+	s.Rename(
+		tcpUser,
+		"Jerry",
+	)
+
+	// 1. 昵称唯一权威来源 Profiles 应该更新
+	profile, ok := s.Profiles[1]
+	if !ok {
+		t.Fatal("expected user profile")
 	}
-	// 2. WebSocket昵称同步
-	if wsUser.Nickname != "Jerry" {
+
+	if profile.Nickname != "Jerry" {
 		t.Fatalf(
-			"expected ws user Jerry, got %s",
-			wsUser.Nickname,
+			"expected profile nickname Jerry, got %s",
+			profile.Nickname,
 		)
 	}
-	users, ok := s.OnlineUsers[1]
 
+	// 2. 两个在线 session 都应该还存在
+	users, ok := s.OnlineUsers[1]
 	if !ok {
 		t.Fatal("expected user id 1 online")
 	}
@@ -57,18 +83,27 @@ func TestRenameSync(t *testing.T) {
 		)
 	}
 
-	r := s.Rooms["golang"]
-	roomUsers, ok := r.Users[1]
-
+	// 3. 改名不应该影响房间成员关系
+	gotRoom, ok := s.Rooms[roomID]
 	if !ok {
-		t.Fatal("expected user in room")
+		t.Fatal("expected room exists")
 	}
 
-	if roomUsers[0].Nickname != "Jerry" {
+	roomUsers, ok := gotRoom.Users[1]
+	if !ok {
+		t.Fatal("expected user id 1 in room")
+	}
+
+	// 因为只有 tcpUser 加入了，所以这里应该只有一个 session
+	if len(roomUsers) != 1 {
 		t.Fatalf(
-			"expected room user Jerry, got %s",
-			roomUsers[0].Nickname,
+			"expected 1 session in room, got %d",
+			len(roomUsers),
 		)
+	}
+
+	if roomUsers[0] != tcpUser {
+		t.Fatal("expected tcp session in room")
 	}
 }
 

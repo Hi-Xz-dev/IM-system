@@ -34,13 +34,15 @@ func main() {
 
 	userRepo := repository.NewUserRepository(db)
 
+	roomRepo := repository.NewRoomRepository(db)
+
 	jwtService := auth.NewJWTService(cfg.JWT.Secret)
 
 	authService := auth.NewService(userRepo, jwtService)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
-	s := server.NewServer(cfg.TCP.Host, cfg.TCP.Port, authService)
+	s := server.NewServer(cfg.TCP.Host, cfg.TCP.Port, authService, roomRepo)
 	logger.Log.Info(
 		"tcp server starting",
 		"host", cfg.TCP.Host,
@@ -54,11 +56,19 @@ func main() {
 	r := gin.New()
 
 	r.Use(httpserver.Recovery())
+
 	r.Use(httpserver.RequestLogger())
 
 	gateway := ws.NewGateway(s, authService)
 
-	httpserver.RegisterRoutes(r, s, authService, gateway, authMiddleware)
+	httpserver.RegisterRoutes(
+		r,
+		s,
+		authService,
+		gateway,
+		authMiddleware,
+		roomRepo,
+	)
 	//静态资源
 	r.Static("/web", "./web") //浏览器访问：/web/xxxx去项目中的：./web/xxxx找文件
 	HttpAddr := fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port)

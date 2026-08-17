@@ -1,17 +1,21 @@
 package httpserver
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
-func getRoomParam(c *gin.Context) (string, bool) {
+func getRoomParam(c *gin.Context) (int64, bool) {
 	room := c.Param("room")
-	if room == "" {
-		c.JSON(http.StatusBadRequest, Fail("invalid room parameter"))
-		return "", false
+
+	roomID, err := strconv.ParseInt(room, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Fail("invalid room id"))
+		return 0, false
 	}
-	return room, true
+	return roomID, true
 }
 
 func getUserID(c *gin.Context) (int64, bool) {

@@ -2,22 +2,25 @@ package httpserver
 
 import (
 	"IM-system/internal/auth"
+	"IM-system/internal/logger"
+	"IM-system/internal/message"
 	"IM-system/internal/repository"
 	"IM-system/internal/service"
 	"IM-system/server"
-	"IM-system/internal/logger"
-	
+
 	"errors"
 	"net/http"
 	"strings"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
-	server      *server.Server //保存了一个 Server 指针
-	roomService *service.RoomService
-	authService *auth.Service
+	server         *server.Server //保存了一个 Server 指针
+	roomService    *service.RoomService
+	authService    *auth.Service
+	messageService *message.MessageService
 }
 
 // 构造函数 把 main.go 里的 s 注入到 Handler 里面
@@ -26,11 +29,13 @@ func NewHandler(
 	s *server.Server,
 	authService *auth.Service,
 	roomRepo *repository.RoomRepository,
+	messageService *message.MessageService,
 ) *Handler {
 	return &Handler{
-		server:      s,
-		roomService: service.NewRoomService(s, roomRepo),
-		authService: authService,
+		server:         s,
+		roomService:    service.NewRoomService(s, roomRepo),
+		authService:    authService,
+		messageService: messageService,
 	}
 }
 
@@ -46,6 +51,74 @@ func (h *Handler) OnlineUsers(c *gin.Context) {
 func (h *Handler) Rooms(c *gin.Context) {
 	rooms := h.roomService.GetRooms()
 	c.JSON(http.StatusOK, OK(rooms))
+}
+
+// 获取房间历史信息
+func (h *Handler) RoomHistory(c *gin.Context) {
+	roomID, ok := getRoomParam(c)
+
+	if !ok {
+		return
+	}
+
+	messages, err := h.messageService.GetRoomHistory(
+		c.Request.Context(),
+		roomID,
+		20,
+	)
+
+	if err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			Fail("get room history failed"),
+		)
+		return
+	}
+
+	c.JSON(http.StatusOK, OK(messages))
+}
+
+// 获取用户历史信息
+func (h *Handler) PrivateHistory(c *gin.Context) {
+	userID, ok := getUserID(c)
+
+	if !ok {
+		c.JSON(
+			http.StatusUnauthorized,
+			Fail("not login"),
+		)
+		return
+	}
+
+	targetID, err := strconv.ParseInt(
+		c.Param("user"),
+		10,
+		64,
+	)
+	if err != nil {
+		c.JSON(
+			http.StatusBadRequest,
+			Fail("invalid user id"),
+		)
+		return
+	}
+
+	messages, err := h.messageService.GetPrivateHistory(
+		c.Request.Context(),
+		userID,
+		targetID,
+		20,
+	)
+
+	if err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			Fail("get user history failed"),
+		)
+		return
+	}
+
+	c.JSON(http.StatusOK, OK(messages))
 }
 
 // 当前成员

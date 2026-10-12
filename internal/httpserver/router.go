@@ -4,8 +4,9 @@ import (
 	"IM-system/gateway/ws"
 	"IM-system/internal/auth"
 	"IM-system/internal/middleware"
-	"IM-system/server"
 	"IM-system/internal/repository"
+	"IM-system/server"
+	"IM-system/internal/message"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,8 +18,9 @@ func RegisterRoutes(
 	gateway *ws.Gateway,
 	authMiddleware *middleware.AuthMiddleware,
 	roomRepo *repository.RoomRepository,
+	messageService *message.MessageService,
 ) {
-	h := NewHandler(s, authService, roomRepo)
+	h := NewHandler(s, authService, roomRepo, messageService)
 	//r.Use(RequestLogger())//配置整个 Gin Engine
 	r.POST("/register", h.Register)
 	r.POST("/login", h.Login)
@@ -35,6 +37,8 @@ func RegisterRoutes(
 	api.GET("/rooms", h.Rooms)
 	api.GET("/users/:user/rooms", h.UserRooms)
 	api.GET("/online-users", h.OnlineUsers)
+	api.GET("/rooms/:room/history", h.RoomHistory)
+	api.GET("/private/:user/history", h.PrivateHistory)
 
 	api.POST("/rooms", h.CreateRoom)
 	api.PUT("/user/:user", h.Rename)

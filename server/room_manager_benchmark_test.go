@@ -17,6 +17,7 @@ func BenchmarkJoinRoomUnsafe(b *testing.B) {
 		8080,
 		nil,
 		nil,
+		nil,
 	)
 
 	const roomID int64 = 1
@@ -63,6 +64,7 @@ func BenchmarkLeaveJoinRoomUnsafe(b *testing.B) {
 	s := NewServer(
 		"127.0.0.1",
 		8080,
+		nil,
 		nil,
 		nil,
 	)

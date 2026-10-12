@@ -67,6 +67,49 @@ func (s *Server) ShowRooms(user *user.User) {
 	}
 }
 
+// 房间历史信息
+func (s *Server) RoomHistory(
+	usr *user.User,
+	roomID int64,
+) {
+	messages, err := s.messageService.GetRoomHistory(
+		context.Background(),
+		roomID,
+		20,
+	)
+
+	if err != nil {
+		logger.Log.Error(
+			"get room history failed",
+			"user_id", usr.ID,
+			"room_id", roomID,
+			"error", err,
+		)
+
+		_ = s.SendSystemMessage(
+			usr,
+			"获取房间历史消息失败",
+		)
+		return
+	}
+
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+
+		text := fmt.Sprintf(
+			"[%s] %s: %s",
+			msg.Time.Format("15:04:05"),
+			msg.FromNickname,
+			msg.Content,
+		)
+
+		_ = s.SendSystemMessage(
+			usr,
+			text,
+		)
+	}
+}
+
 // 加入房间
 func (s *Server) JoinRoom(joinuser *user.User, roomID int64) {
 	s.mapLock.Lock()
@@ -176,14 +219,14 @@ func (s *Server) LeaveRoom(leaveuser *user.User, roomID int64) {
 }
 
 // 创建房间
-func (s *Server) CreateRoom(createuser *user.User, roomName string) error {
+func (s *Server) CreateRoom(createuser *user.User, roomName string) (int64, error) {
 
 	modelRoom := &model.Room{
 		Name: roomName,
 	}
 
 	if err := s.roomRepo.Create(context.Background(), modelRoom); err != nil {
-		return err
+		return 0, err
 	}
 
 	roomID := modelRoom.ID
@@ -197,7 +240,7 @@ func (s *Server) CreateRoom(createuser *user.User, roomName string) error {
 
 	s.joinRoomUnsafe(createuser, roomID)
 
-	return nil
+	return roomID, nil
 }
 
 // 群聊功能

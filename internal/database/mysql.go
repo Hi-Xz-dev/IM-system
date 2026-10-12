@@ -10,7 +10,7 @@ import (
 func NewMySQL(cfg config.MySQLConfig) (*sql.DB, error) {
 	dsn := fmt.Sprintf(
 		//用户名:密码@tcp(主机:端口)/数据库名
-		"%s:%s@tcp(%s:%d)/%s",
+		"%s:%s@tcp(%s:%d)/%s?parseTime=true",
 		cfg.Username,
 		cfg.Password,
 		cfg.Host,

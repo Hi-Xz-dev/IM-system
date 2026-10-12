@@ -11,12 +11,15 @@ import (
 type RoomService struct {
 	server *server.Server
 
-	 roomRepo *repository.RoomRepository
+	roomRepo *repository.RoomRepository
 }
 
-func NewRoomService(s *server.Server,roomRepo *repository.RoomRepository,) *RoomService {
+func NewRoomService(
+	s *server.Server, 
+	roomRepo *repository.RoomRepository,
+) *RoomService {
 	return &RoomService{
-		server: s,
+		server:   s,
 		roomRepo: roomRepo,
 	}
 }
@@ -34,12 +37,9 @@ func (rs *RoomService) CreateRoomRecord(
 		Name: name,
 	}
 
-	if err := rs.roomRepo.Create(ctx, modelRoom); err != nil{
+	if err := rs.roomRepo.Create(ctx, modelRoom); err != nil {
 		return nil, err
 	}
 
-
 	return modelRoom, nil
 }
-
-

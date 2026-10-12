@@ -14,6 +14,7 @@ import (
 	"IM-system/internal/logger"
 	"IM-system/internal/middleware"
 	"IM-system/internal/repository"
+	"IM-system/internal/message"
 	"IM-system/server"
 
 	"github.com/gin-gonic/gin"
@@ -36,13 +37,23 @@ func main() {
 
 	roomRepo := repository.NewRoomRepository(db)
 
+	messageRepo := repository.NewMessageRepository(db)
+
+	messageService := message.NewMessageService(messageRepo)
+
 	jwtService := auth.NewJWTService(cfg.JWT.Secret)
 
 	authService := auth.NewService(userRepo, jwtService)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
-	s := server.NewServer(cfg.TCP.Host, cfg.TCP.Port, authService, roomRepo)
+	s := server.NewServer(
+		cfg.TCP.Host,
+		cfg.TCP.Port,
+		authService,
+		roomRepo,
+		messageService,
+	)
 	logger.Log.Info(
 		"tcp server starting",
 		"host", cfg.TCP.Host,
@@ -68,6 +79,7 @@ func main() {
 		gateway,
 		authMiddleware,
 		roomRepo,
+		messageService,
 	)
 	//静态资源
 	r.Static("/web", "./web") //浏览器访问：/web/xxxx去项目中的：./web/xxxx找文件

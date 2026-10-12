@@ -4,6 +4,7 @@ import (
 	"IM-system/internal/domain"
 	"IM-system/internal/logger"
 	"IM-system/internal/protocol"
+
 	"IM-system/user"
 
 	"fmt"
@@ -15,6 +16,24 @@ func (s *Server) SendSystemMessage(
 	content string,
 ) error {
 	msg := domain.SystemMessage(content)
+	data, err := protocol.EncodeMessage(msg)
+	if err != nil {
+		return fmt.Errorf("encode system message: %w", err)
+	}
+	return u.SendMsg(string(data))
+}
+
+// SendSystemMessage 创建房间系统消息
+func (s *Server) SendSystemRoomMessage(
+	roomID int64,
+	u *user.User,
+	content string,
+) error {
+	
+	msg := domain.SystemMessage(content)
+
+	msg.RoomID = roomID
+
 	data, err := protocol.EncodeMessage(msg)
 	if err != nil {
 		return fmt.Errorf("encode system message: %w", err)
@@ -42,6 +61,10 @@ func (s *Server) SendPrivateMessage(
 		content,
 	)
 	msg.To = targetID
+	//临时判断
+	if s.messageService != nil {
+		s.PersistQueue <- msg
+	}
 
 	data, err := protocol.EncodeMessage(msg)
 	if err != nil {
@@ -83,6 +106,11 @@ func (s *Server) SendRoomMessage(
 	)
 	msg.RoomID = roomID
 	msg.RoomName = roomName
+
+	//临时测试
+	if s.messageService != nil {
+		s.PersistQueue <- msg
+	}
 
 	data, err := protocol.EncodeMessage(msg)
 	if err != nil {

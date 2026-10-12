@@ -48,6 +48,12 @@ func (s *Server) DoMessage(usr *user.User, msg string) {
 	//房间人数
 	case domain.CmdMembers:
 		s.handlerMembers(usr, cmd.Args)
+	//用户历史信息
+	case domain.CmdPrivateHistory:
+		s.handlerPrivateHistory(usr, cmd.Args)
+	//房间历史信息
+	case domain.CmdRoomHistory:
+		s.handlerRoomHistory(usr, cmd.Args)
 	default:
 		s.BroadcastSystemMessage(usr, msg)
 	}
@@ -90,12 +96,36 @@ func (s *Server) handlerRename(usr *user.User, args []string) {
 	s.Rename(usr, args[0])
 }
 
+func (s *Server) handlerPrivateHistory(usr *user.User, args []string) {
+	if len(args) != 1 {
+		_ = s.SendSystemMessage(
+			usr,
+			"用法: history-private|用户ID",
+		)
+		return
+	}
+
+	targetID, err := protocol.ParseID(args[0])
+	if err != nil {
+		_ = s.SendSystemMessage(
+			usr,
+			"用户ID错误",
+		)
+		return
+	}
+
+	s.PrivateHistory(
+		usr,
+		targetID,
+	)	
+}
+
 func (s *Server) handlerPrivateChat(usr *user.User, args []string) {
 	if len(args) != 2 {
 		_ = s.SendSystemMessage(usr, "用法: to|用户ID|消息")
 		return
 	}
-	userID, err := protocol.ParseUserID(args[0])
+	userID, err := protocol.ParseID(args[0])
 	if err != nil {
 		_ = s.SendSystemMessage(usr, "用户ID错误")
 		return
@@ -109,7 +139,9 @@ func (s *Server) handlerCreate(usr *user.User, args []string) {
 		return
 	}
 
-	if err := s.CreateRoom(usr, args[0]); err != nil {
+	roomID, err := s.CreateRoom(usr, args[0])
+	
+	if err != nil {
 
 		if errors.Is(err, repository.ErrRoomAlreadyExists) {
 			s.SendSystemMessage(
@@ -132,11 +164,42 @@ func (s *Server) handlerCreate(usr *user.User, args []string) {
 		return
 	}
 
-	s.SendSystemMessage(
+	s.SendSystemRoomMessage(
+		roomID,
 		usr,
 		"创建房间成功",
+
 	)
 }
+
+func (s *Server) handlerRoomHistory(
+	usr *user.User,
+	args []string,
+) {
+	if len(args) != 1 {
+		_ = s.SendSystemMessage(
+			usr,
+			"用法: history-room|房间ID",
+		)
+		return
+	}
+
+	roomID, err := protocol.ParseID(args[0])
+	if err != nil {
+		_ = s.SendSystemMessage(
+			usr, 
+			"房间ID错误",
+		)
+		return
+	}
+
+	s.RoomHistory(
+		usr,
+		roomID,
+	)
+}
+
+
 func (s *Server) handlerJoin(usr *user.User, args []string) {
 	if len(args) != 1 {
 		_ = s.SendSystemMessage(usr, "用法: join|房间ID")

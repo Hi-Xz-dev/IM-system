@@ -13,6 +13,7 @@ func TestRenameSync(t *testing.T) {
 		8080,
 		nil,
 		nil,
+		nil,
 	)
 
 	const roomID int64 = 1

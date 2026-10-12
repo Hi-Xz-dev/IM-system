@@ -12,6 +12,7 @@ func TestOnlineOffline(t *testing.T) {
 		8080,
 		nil,
 		nil,
+		nil,
 	)
 
 	u := &user.User{
@@ -57,6 +58,7 @@ func TestOfflineDoubleCall(t *testing.T) {
 	s := NewServer(
 		"127.0.0.1",
 		8080,
+		nil,
 		nil,
 		nil,
 	)

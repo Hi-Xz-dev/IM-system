@@ -2,7 +2,10 @@ package server
 
 import (
 	"IM-system/internal/auth"
+	"IM-system/internal/domain"
+	"IM-system/internal/message"
 	"IM-system/internal/repository"
+
 	"IM-system/room"
 	"IM-system/user"
 
@@ -28,12 +31,16 @@ type Server struct {
 	listener net.Listener
 	//关闭
 	IsShutdown bool
-
+	//
 	authService *auth.Service
-
+	//房间信息持久
 	roomRepo *repository.RoomRepository
-
+	//个人资料持久
 	Profiles map[int64]*UserProfile
+	//信息持久
+	messageService *message.MessageService
+	//异步信息持久化
+	PersistQueue chan domain.Message
 }
 
 // 创建一个server接口
@@ -42,16 +49,19 @@ func NewServer(
 	port int,
 	authService *auth.Service,
 	roomRepo *repository.RoomRepository,
+	messageService *message.MessageService,
 ) *Server {
 	return &Server{
-		IP:          ip,
-		Port:        port,
-		OnlineUsers: make(map[int64][]*user.User),
-		Message:     make(chan string, 100),
-		Rooms:       make(map[int64]*room.Room),
-		Disconnect:  make(chan *user.User, 100),
-		authService: authService,
-		roomRepo:    roomRepo,
-		Profiles:    make(map[int64]*UserProfile),
+		IP:             ip,
+		Port:           port,
+		OnlineUsers:    make(map[int64][]*user.User),
+		Message:        make(chan string, 100),
+		Rooms:          make(map[int64]*room.Room),
+		Disconnect:     make(chan *user.User, 100),
+		authService:    authService,
+		roomRepo:       roomRepo,
+		Profiles:       make(map[int64]*UserProfile),
+		messageService: messageService,
+		PersistQueue:   make(chan domain.Message, 1024),
 	}
 }

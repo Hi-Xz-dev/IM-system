@@ -29,6 +29,8 @@ func (s *Server) Start() {
 	go s.ListenDisconnect()
 	//等待广播消息，然后投递给在线用户
 	go s.ListenMessager()
+	//异步信息持久化
+	go s.ListenPersistMessage()
 	for {
 		//accept等待 TCP三次握手
 		conn, err := listener.Accept()

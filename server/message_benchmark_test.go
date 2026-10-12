@@ -70,6 +70,7 @@ func BenchmarkBroadcastMessage(b *testing.B) {
 		8080,
 		nil,
 		nil,
+		nil,
 	)
 
 	const roomID int64 = 1

@@ -42,11 +42,15 @@ func Parse(raw string) domain.Command {
 		return domain.Command{Type: domain.CmdHelp, Args: args, Raw: raw}
 	case "auth":
 		return domain.Command{Type: domain.CmdAuth, Args: args, Raw: raw}
+	case "history-room":
+		return domain.Command{Type: domain.CmdRoomHistory, Args: args, Raw: raw}
+	case "history-private":
+		return domain.Command{Type: domain.CmdPrivateHistory, Args: args, Raw: raw}
 	default:
 		return domain.Command{Type: domain.CmdPublic, Args: args, Raw: raw}
 	}
 }
 
-func ParseUserID(arg string) (int64, error) {
+func ParseID(arg string) (int64, error) {
 	return strconv.ParseInt(arg, 10, 64)
 }

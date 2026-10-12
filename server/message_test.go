@@ -48,10 +48,11 @@ func TestPrivateChat(t *testing.T) {
 		"Bob",
 		"127.0.0.2",
 	)
-	
+
 	s := NewServer(
 		"127.0.0.1",
 		8080,
+		nil,
 		nil,
 		nil,
 	)

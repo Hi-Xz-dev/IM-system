@@ -4,6 +4,8 @@ import (
 	"IM-system/internal/logger"
 	"IM-system/user"
 
+	"context"
+	"fmt"
 	"strings"
 )
 
@@ -169,7 +171,7 @@ func (s *Server) nameExistsUnsafe(name string) bool {
 	for _, profile := range s.Profiles {
 
 		if profile.Nickname == name {
-			
+
 			return true
 
 		}
@@ -205,6 +207,47 @@ func (s *Server) GetNickname(userID int64) (string, bool) {
 	return profile.Nickname, true
 }
 
+// 用户历史信息
+func (s *Server) PrivateHistory(usr *user.User, targetID int64) {
+	messages, err := s.messageService.GetPrivateHistory(
+		context.Background(),
+		usr.ID,
+		targetID,
+		20,
+	)
+
+	if err != nil {
+		logger.Log.Error(
+			"get private history failed",
+			"user_id", usr.ID,
+			"target_id", targetID,
+			"error", err,
+		)
+
+		_ = s.SendSystemMessage(
+			usr,
+			"获取历史消息失败",
+		)
+		return
+	}
+
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+
+		text := fmt.Sprintf(
+			"[%s] %s: %s",
+			msg.Time.Format("15:04:05"),
+			msg.FromNickname,
+			msg.Content,
+		)
+
+		_ = s.SendSystemMessage(
+			usr,
+			text,
+		)
+	}
+}
+
 // Help
 func (s *Server) Help(user *user.User) {
 	_ = s.SendSystemMessage(user,
@@ -218,6 +261,8 @@ join|房间             加入房间
 leave|房间            退出房间
 room|房间|消息        房间聊天
 members|房间          房间成员
+history-private|用户ID 用户历史信息
+history-room|房间ID    房间历史信息
 where                 查看已加入的房间
 help                  命令列表
 quit                  退出系统

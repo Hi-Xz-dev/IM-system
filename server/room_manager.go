@@ -177,7 +177,7 @@ func (s *Server) LeaveRoom(leaveuser *user.User, roomID int64) {
 		) //防御式编程（Defensive Programming）
 		return
 	}
-
+ 
 	if !leaveuser.InRoom(roomID) {
 		s.mapLock.Unlock()
 		s.SendSystemMessage(
@@ -349,8 +349,16 @@ func (s *Server) leaveRoomUnsafe(leaveuser *user.User, roomID int64) {
 		leaveuser.RemoveRoom(roomID)
 		return
 	}
-	delete(r.Users, leaveuser.ID)
+	// 清理房间中这个账号所有连接的反向记录。
+	for _, seesion := range r.Users[leaveuser.ID]{
+
+		seesion.RemoveRoom(roomID)
+	}
+	
 	leaveuser.RemoveRoom(roomID)
+	// 删除整个账号在房间中的成员记录。
+	delete(r.Users, leaveuser.ID)
+	
 	if len(r.Users) == 0 {
 		delete(s.Rooms, roomID) //房间无成员直接删除房间
 	}

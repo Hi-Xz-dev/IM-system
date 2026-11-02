@@ -125,6 +125,7 @@ func (s *Server) JoinRoom(joinuser *user.User, roomID int64) {
 		return
 	}
 	if joinuser.InRoom(roomID) {
+		s.joinAccountRoomUnsafe(joinuser, roomID)
 		s.mapLock.Unlock()
 		s.SendSystemMessage(
 			joinuser,
@@ -132,7 +133,7 @@ func (s *Server) JoinRoom(joinuser *user.User, roomID int64) {
 		)
 		return
 	}
-	s.joinRoomUnsafe(joinuser, roomID)
+	s.joinAccountRoomUnsafe(joinuser, roomID)
 
 	users := s.getRoomUsersUnsafe(roomID)
 
@@ -177,7 +178,7 @@ func (s *Server) LeaveRoom(leaveuser *user.User, roomID int64) {
 		) //防御式编程（Defensive Programming）
 		return
 	}
- 
+
 	if !leaveuser.InRoom(roomID) {
 		s.mapLock.Unlock()
 		s.SendSystemMessage(
@@ -238,7 +239,7 @@ func (s *Server) CreateRoom(createuser *user.User, roomName string) (int64, erro
 
 	s.Rooms[roomID] = r
 
-	s.joinRoomUnsafe(createuser, roomID)
+	s.joinAccountRoomUnsafe(createuser, roomID)
 
 	return roomID, nil
 }
@@ -335,13 +336,29 @@ func (s *Server) AddRoom(r *room.Room) {
 // ================Unsafe========================
 // 加入房间 (内层)
 func (s *Server) joinRoomUnsafe(joinuser *user.User, roomID int64) {
+	//连接是否已经存在
 	r := s.Rooms[roomID]
+	for _, session := range r.Users[joinuser.ID] {
+		if session == joinuser {
+			return
+		}
+	}
 	r.Users[joinuser.ID] = append(r.Users[joinuser.ID], joinuser)
 	joinuser.AddRoom(roomID)
 
 }
 
-// 退出房间
+// 加入操作以账号为单位，同步所有在线端。调用方必须持有 mapLock 写锁。
+func (s *Server) joinAccountRoomUnsafe(usr *user.User, roomID int64) {
+	s.joinRoomUnsafe(usr, roomID)
+	for _, session := range s.OnlineUsers[usr.ID] {
+		if !session.IsClosed {
+			s.joinRoomUnsafe(session, roomID)
+		}
+	}
+}
+
+// 主动退房：同账号所有已加入的连接一起退出。调用方必须持有 mapLock 写锁。
 func (s *Server) leaveRoomUnsafe(leaveuser *user.User, roomID int64) {
 
 	r, ok := s.Rooms[roomID]
@@ -350,17 +367,41 @@ func (s *Server) leaveRoomUnsafe(leaveuser *user.User, roomID int64) {
 		return
 	}
 	// 清理房间中这个账号所有连接的反向记录。
-	for _, seesion := range r.Users[leaveuser.ID]{
-
-		seesion.RemoveRoom(roomID)
+	for _, session := range r.Users[leaveuser.ID] {
+		session.RemoveRoom(roomID)
 	}
-	
+
 	leaveuser.RemoveRoom(roomID)
 	// 删除整个账号在房间中的成员记录。
 	delete(r.Users, leaveuser.ID)
-	
+
 	if len(r.Users) == 0 {
 		delete(s.Rooms, roomID) //房间无成员直接删除房间
+	}
+}
+
+// 断线清理：只移除当前连接，保留同账号其他连接。调用方必须持有 mapLock 写锁。
+func (s *Server) removeRoomSessionUnsafe(usr *user.User, roomID int64) {
+	usr.RemoveRoom(roomID)
+	r, ok := s.Rooms[roomID]
+	if !ok {
+		return
+	}
+
+	sessions := r.Users[usr.ID]
+	remaining := make([]*user.User, 0, len(sessions))
+	for _, session := range sessions {
+		if session != usr {
+			remaining = append(remaining, session)
+		}
+	}
+	if len(remaining) == 0 {
+		delete(r.Users, usr.ID)
+	} else {
+		r.Users[usr.ID] = remaining
+	}
+	if len(r.Users) == 0 {
+		delete(s.Rooms, roomID)
 	}
 }
 
@@ -401,13 +442,10 @@ func (s *Server) JoinRoomH(userID int64, roomID int64) (string, bool) {
 	if _, ok := s.Rooms[roomID]; !ok {
 		return "未找到房间", false
 	}
-	for _, u := range users {
-		if u.InRoom(roomID) {
-			return "已加入房间", true
-		}
-	}
-	for _, u := range users {
-		s.joinRoomUnsafe(u, roomID)
+	alreadyJoined := len(s.Rooms[roomID].Users[userID]) > 0
+	s.joinAccountRoomUnsafe(users[0], roomID)
+	if alreadyJoined {
+		return "已加入房间", true
 	}
 	return "加入房间", true
 }
@@ -426,7 +464,7 @@ func (s *Server) LeaveRoomH(userID int64, roomID int64) (string, bool) {
 	}
 	for _, u := range users {
 		if u.InRoom(roomID) {
-			s.leaveRoomUnsafe(users[0], roomID)
+			s.leaveRoomUnsafe(u, roomID)
 			return "退出房间", true
 		}
 	}
@@ -450,11 +488,6 @@ func (s *Server) CreateRoomRuntime(userID int64, roomID int64, roomName string) 
 	r := room.NewRoom(roomID, roomName)
 
 	s.Rooms[roomID] = r
-	for _, u := range createUsers {
-		s.joinRoomUnsafe(
-			u,
-			roomID,
-		)
-	}
+	s.joinAccountRoomUnsafe(createUsers[0], roomID)
 	return "创建房间成功", true
 }

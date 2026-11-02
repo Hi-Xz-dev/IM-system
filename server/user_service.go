@@ -13,6 +13,14 @@ import (
 func (s *Server) Online(usr *user.User) {
 	//用户上线，将用户加入OnlineUsers
 	s.mapLock.Lock()
+	// 聊天室成员关系只在账号在线期间保留，新端继承其他在线端的房间。
+	for _, session := range s.OnlineUsers[usr.ID] {
+		for roomID := range session.JoinedRooms {
+			if _, ok := s.Rooms[roomID]; ok {
+				s.joinRoomUnsafe(usr, roomID)
+			}
+		}
+	}
 	s.OnlineUsers[usr.ID] =
 		append(s.OnlineUsers[usr.ID], usr)
 
@@ -41,9 +49,9 @@ func (s *Server) Offline(usr *user.User) {
 	for roomID := range usr.JoinedRooms {
 		roomIDs = append(roomIDs, roomID)
 	}
-	//逐一退出
+	// 断线仅清理当前 session，不触发同账号全端退房。
 	for _, roomID := range roomIDs {
-		s.leaveRoomUnsafe(usr, roomID)
+		s.removeRoomSessionUnsafe(usr, roomID)
 	}
 	//删除当前链接
 	users := s.OnlineUsers[usr.ID]

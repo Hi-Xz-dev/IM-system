@@ -100,10 +100,12 @@ func (s *Server) Where(usr *user.User) {
 func (s *Server) PrivateChat(sender *user.User, targetID int64, content string) {
 	s.mapLock.RLock()
 	targetSessions, ok := s.OnlineUsers[targetID]
+	//对于锁外要遍历的切片，锁内需要创建独立的底层数组，才能让这份列表不被其他协程修改
+	targetSessions = append([]*user.User(nil), targetSessions...)
 	s.mapLock.RUnlock()
 	if !ok || len(targetSessions) == 0 {
 
-		err := s.SendSystemMessage(sender, "用户不存在，请重试")
+		err := s.SendSystemMessage(sender, "用户当前不在线")
 		if err != nil {
 			logger.Log.Error(
 				"send system message failed",
@@ -121,10 +123,12 @@ func (s *Server) PrivateChat(sender *user.User, targetID int64, content string) 
 			"error",
 			err,
 		)
+		_ = s.SendSystemMessage(sender, "私聊发送失败，请稍后重试")
+		return
 	}
 
 	if err := s.SendSystemMessage(
-		sender, "私聊发送成功",
+		sender, "私聊消息已进入发送队列",
 	); err != nil {
 
 		logger.Log.Warn(

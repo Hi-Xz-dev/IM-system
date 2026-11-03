@@ -46,7 +46,7 @@ func TestRenameSync(t *testing.T) {
 
 	s.AddRoom(r)
 
-	// 这里只让 TCP session 加入房间
+	// TCP session 发起加入，同账号所有在线端同步加入。
 	s.JoinRoom(
 		tcpUser,
 		roomID,
@@ -95,16 +95,19 @@ func TestRenameSync(t *testing.T) {
 		t.Fatal("expected user id 1 in room")
 	}
 
-	// 因为只有 tcpUser 加入了，所以这里应该只有一个 session
-	if len(roomUsers) != 1 {
+	// 改名后两个端都应保留房间成员关系。
+	if len(roomUsers) != 2 {
 		t.Fatalf(
-			"expected 1 session in room, got %d",
+			"expected 2 sessions in room, got %d",
 			len(roomUsers),
 		)
 	}
 
-	if roomUsers[0] != tcpUser {
-		t.Fatal("expected tcp session in room")
+	if roomUsers[0] != tcpUser || roomUsers[1] != wsUser {
+		t.Fatal("expected both tcp and websocket sessions in room")
+	}
+	if !tcpUser.InRoom(roomID) || !wsUser.InRoom(roomID) {
+		t.Fatal("rename must preserve membership on both sessions")
 	}
 }
 

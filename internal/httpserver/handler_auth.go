@@ -11,7 +11,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest,
-			Fail("incvalid request"),
+			Fail("invalid request"),
 		)
 		return
 	}

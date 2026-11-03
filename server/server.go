@@ -29,8 +29,9 @@ type Server struct {
 	Disconnect chan *user.User
 	//服务端的 TCP 监听器
 	listener net.Listener
-	//关闭
-	IsShutdown bool
+	// 生命周期锁保护 listener 和 isShutdown，不跨越网络 IO。
+	lifecycleMu sync.Mutex
+	isShutdown  bool
 	//
 	authService *auth.Service
 	//房间信息持久

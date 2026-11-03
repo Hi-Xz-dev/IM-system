@@ -29,7 +29,7 @@ func (s *Server) SendSystemRoomMessage(
 	u *user.User,
 	content string,
 ) error {
-	
+
 	msg := domain.SystemMessage(content)
 
 	msg.RoomID = roomID
@@ -71,6 +71,8 @@ func (s *Server) SendPrivateMessage(
 		return fmt.Errorf("encode private message: %w", err)
 	}
 
+	sent := 0
+
 	for _, u := range targets {
 		if err := u.SendMsg(string(data)); err != nil {
 			logger.Log.Warn(
@@ -80,6 +82,10 @@ func (s *Server) SendPrivateMessage(
 			)
 			continue
 		}
+		sent++
+	}
+	if sent == 0 {
+		return fmt.Errorf("all target sessions failed to enqueue message")
 	}
 	return nil
 }

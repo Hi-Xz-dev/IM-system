@@ -1,6 +1,8 @@
 package connection
 
 import (
+	"time"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -16,6 +18,9 @@ func NewWSConnection(conn *websocket.Conn) *WSConnection {
 }
 
 func (w *WSConnection) Write(data []byte) error {
+	if err := w.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return err
+	}
 	return w.conn.WriteMessage(websocket.TextMessage, data)
 
 }

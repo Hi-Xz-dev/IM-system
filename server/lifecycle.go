@@ -15,7 +15,10 @@ func (s *Server) Start() {
 		logger.Log.Error("net.Listen err", "error", err)
 		return
 	}
-	s.listener = listener
+	if !s.registerListener(listener) {
+		_ = listener.Close()
+		return
+	}
 	logger.Log.Info(
 		"tcp server started",
 		"ip", s.IP,
@@ -35,7 +38,7 @@ func (s *Server) Start() {
 		//accept等待 TCP三次握手
 		conn, err := listener.Accept()
 		if err != nil {
-			if s.IsShutdown {
+			if s.isShuttingDown() {
 				logger.Log.Info("server shutdown, stop accepting connections")
 				return
 			}
@@ -49,9 +52,12 @@ func (s *Server) Start() {
 
 // 关闭全部链接
 func (s *Server) Shutdown() {
-	s.IsShutdown = true
-	if s.listener != nil {
-		_ = s.listener.Close()
+	s.lifecycleMu.Lock()
+	s.isShutdown = true
+	listener := s.listener
+	s.lifecycleMu.Unlock()
+	if listener != nil {
+		_ = listener.Close()
 	}
 	s.mapLock.RLock()
 
@@ -69,4 +75,21 @@ func (s *Server) Shutdown() {
 		_ = s.SendSystemMessage(u, "服务器正在关闭")
 		s.Offline(u)
 	}
+}
+
+// 发布监听器与关闭状态使用同一把锁，防止 Shutdown 漏掉刚创建的监听器。
+func (s *Server) registerListener(listener net.Listener) bool {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	if s.isShutdown {
+		return false
+	}
+	s.listener = listener
+	return true
+}
+
+func (s *Server) isShuttingDown() bool {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	return s.isShutdown
 }

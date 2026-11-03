@@ -10,8 +10,8 @@ import (
 
 	"errors"
 	"net/http"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -258,8 +258,9 @@ func (h *Handler) CreateRoom(c *gin.Context) {
 		return
 	}
 
-	r, err := h.roomService.CreateRoomRecord(
+	_, err := h.roomService.CreateRoom(
 		c.Request.Context(),
+		userID,
 		req.Name,
 	)
 	if err != nil {
@@ -285,11 +286,5 @@ func (h *Handler) CreateRoom(c *gin.Context) {
 		return
 	}
 
-	msg, ok := h.server.CreateRoomRuntime(userID, r.ID, r.Name)
-
-	if !ok {
-		c.JSON(http.StatusConflict, Fail(msg))
-		return
-	}
-	c.JSON(http.StatusCreated, OK(msg))
+	c.JSON(http.StatusCreated, OK("创建房间成功"))
 }

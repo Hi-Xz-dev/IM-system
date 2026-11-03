@@ -12,7 +12,7 @@ import (
 
 func TestRoomJoinLeave(t *testing.T) {
 
-	s := NewServer("127.0.0.1", 8080, nil, nil, nil,)
+	s := NewServer("127.0.0.1", 8080, nil, nil, nil)
 
 	const roomID int64 = 1
 
@@ -65,9 +65,9 @@ func TestRoomJoinLeave(t *testing.T) {
 		t.Fatalf("expected current room empty, got %d", roomID)
 	}
 
-	// 房间为空后，应该自动删除
-	if _, ok := s.Rooms[roomID]; ok {
-		t.Fatalf("expected room golang deleted")
+	// 空房保留，其他账号之后仍可加入。
+	if s.Rooms[roomID] != r || len(r.Users) != 0 {
+		t.Fatal("expected empty room to remain")
 	}
 }
 
@@ -314,7 +314,7 @@ func TestConcurrentRoomJoin(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for i := range n {
-		wg.Go(func(){
+		wg.Go(func() {
 
 			u := &user.User{
 				ID:          int64(i + 1),
@@ -410,7 +410,7 @@ func TestConcurrentOffline(t *testing.T) {
 		t.Fatal("user still online")
 	}
 
-	if _, ok := s.Rooms[roomID]; ok {
-		t.Fatal("room still exists")
+	if s.Rooms[roomID] != r || len(r.Users) != 0 {
+		t.Fatal("expected empty room to remain after disconnect")
 	}
 }

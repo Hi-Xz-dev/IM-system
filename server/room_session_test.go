@@ -38,15 +38,16 @@ func setupRoomSessions(t *testing.T) (*Server, *room.Room, *user.User, *user.Use
 }
 
 func TestJoinSynchronizesAccountSessions(t *testing.T) {
-	for _, entry := range []string{"command", "http", "create-runtime"} {
+	for _, entry := range []string{"command", "http", "create"} {
 		t.Run(entry, func(t *testing.T) {
 			s := NewServer("127.0.0.1", 0, nil, nil, nil)
 			a1, a2 := newRoomTestSession(1), newRoomTestSession(1)
 			s.Online(a1)
 			s.Online(a2)
-			if entry == "create-runtime" {
-				if msg, ok := s.CreateRoomRuntime(a1.ID, 1, "test"); !ok {
-					t.Fatal(msg)
+			if entry == "create" {
+				s.roomRepo = &memoryRoomRepository{}
+				if _, err := s.CreateRoom(a1, "test"); err != nil {
+					t.Fatal(err)
 				}
 			} else {
 				s.AddRoom(room.NewRoom(1, "test"))
@@ -168,8 +169,8 @@ func TestOfflinePreservesOtherRoomSessions(t *testing.T) {
 		t.Fatal("room with another account must remain")
 	}
 	s.Offline(b)
-	if _, ok := s.Rooms[r.ID]; ok {
-		t.Fatal("empty room must be removed")
+	if s.Rooms[r.ID] != r || len(r.Users) != 0 {
+		t.Fatal("empty room must remain after all sessions disconnect")
 	}
 }
 

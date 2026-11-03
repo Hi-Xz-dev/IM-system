@@ -15,7 +15,7 @@ type RoomService struct {
 }
 
 func NewRoomService(
-	s *server.Server, 
+	s *server.Server,
 	roomRepo *repository.RoomRepository,
 ) *RoomService {
 	return &RoomService{
@@ -28,18 +28,10 @@ func (rs *RoomService) GetRooms() []server.RoomInfo {
 	return rs.server.GetRooms()
 }
 
-func (rs *RoomService) CreateRoomRecord(
+func (rs *RoomService) CreateRoom(
 	ctx context.Context,
+	userID int64,
 	name string,
 ) (*model.Room, error) {
-
-	modelRoom := &model.Room{
-		Name: name,
-	}
-
-	if err := rs.roomRepo.Create(ctx, modelRoom); err != nil {
-		return nil, err
-	}
-
-	return modelRoom, nil
+	return rs.server.CreateRoomForUser(ctx, userID, name)
 }

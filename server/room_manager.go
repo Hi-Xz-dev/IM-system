@@ -221,27 +221,46 @@ func (s *Server) LeaveRoom(leaveuser *user.User, roomID int64) {
 
 // 创建房间
 func (s *Server) CreateRoom(createuser *user.User, roomName string) (int64, error) {
-
-	modelRoom := &model.Room{
-		Name: roomName,
-	}
-
-	if err := s.roomRepo.Create(context.Background(), modelRoom); err != nil {
+	created, err := s.CreateRoomForUser(context.Background(), createuser.ID, roomName)
+	if err != nil {
 		return 0, err
 	}
+	return created.ID, nil
+}
 
-	roomID := modelRoom.ID
-
+// CreateRoomForUser 先持久化房间，再发布运行时状态；账号不在线时创建空房。
+func (s *Server) CreateRoomForUser(ctx context.Context, userID int64, name string) (*model.Room, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("invalid room name")
+	}
+	created := &model.Room{Name: name}
+	if err := s.roomRepo.Create(ctx, created); err != nil {
+		return nil, err
+	}
 	s.mapLock.Lock()
 	defer s.mapLock.Unlock()
+	s.Rooms[created.ID] = room.NewRoom(created.ID, created.Name)
+	if sessions := s.OnlineUsers[userID]; len(sessions) > 0 {
+		s.joinAccountRoomUnsafe(sessions[0], created.ID)
+	}
+	return created, nil
+}
 
-	r := room.NewRoom(roomID, roomName)
-
-	s.Rooms[roomID] = r
-
-	s.joinAccountRoomUnsafe(createuser, roomID)
-
-	return roomID, nil
+// LoadRooms 仅在开放网络入口前调用，不恢复离线成员，也不覆盖已有在线状态。
+func (s *Server) LoadRooms(ctx context.Context) error {
+	rooms, err := s.roomRepo.FindAll(ctx)
+	if err != nil {
+		return err
+	}
+	s.mapLock.Lock()
+	defer s.mapLock.Unlock()
+	for _, saved := range rooms {
+		if _, exists := s.Rooms[saved.ID]; !exists {
+			s.Rooms[saved.ID] = room.NewRoom(saved.ID, saved.Name)
+		}
+	}
+	return nil
 }
 
 // 群聊功能
@@ -375,9 +394,6 @@ func (s *Server) leaveRoomUnsafe(leaveuser *user.User, roomID int64) {
 	// 删除整个账号在房间中的成员记录。
 	delete(r.Users, leaveuser.ID)
 
-	if len(r.Users) == 0 {
-		delete(s.Rooms, roomID) //房间无成员直接删除房间
-	}
 }
 
 // 断线清理：只移除当前连接，保留同账号其他连接。调用方必须持有 mapLock 写锁。
@@ -399,9 +415,6 @@ func (s *Server) removeRoomSessionUnsafe(usr *user.User, roomID int64) {
 		delete(r.Users, usr.ID)
 	} else {
 		r.Users[usr.ID] = remaining
-	}
-	if len(r.Users) == 0 {
-		delete(s.Rooms, roomID)
 	}
 }
 
@@ -470,24 +483,4 @@ func (s *Server) LeaveRoomH(userID int64, roomID int64) (string, bool) {
 	}
 
 	return "未加入房间", true
-}
-
-// 创建房间
-func (s *Server) CreateRoomRuntime(userID int64, roomID int64, roomName string) (string, bool) {
-	s.mapLock.Lock()
-	defer s.mapLock.Unlock()
-	createUsers, ok := s.OnlineUsers[userID]
-	if !ok {
-		return "未找到用户", false
-	}
-
-	if _, ok := s.Rooms[roomID]; ok {
-		return "房间名存在，请重试", false
-	}
-
-	r := room.NewRoom(roomID, roomName)
-
-	s.Rooms[roomID] = r
-	s.joinAccountRoomUnsafe(createUsers[0], roomID)
-	return "创建房间成功", true
 }

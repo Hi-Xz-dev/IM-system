@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"IM-system/gateway/ws"
 	"IM-system/internal/auth"
@@ -12,9 +14,9 @@ import (
 	"IM-system/internal/database"
 	"IM-system/internal/httpserver"
 	"IM-system/internal/logger"
+	"IM-system/internal/message"
 	"IM-system/internal/middleware"
 	"IM-system/internal/repository"
-	"IM-system/internal/message"
 	"IM-system/server"
 
 	"github.com/gin-gonic/gin"
@@ -54,6 +56,14 @@ func main() {
 		roomRepo,
 		messageService,
 	)
+	// 开放 TCP/HTTP 入口前加载已有房间；加载失败则停止启动。
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	err = s.LoadRooms(ctx)
+	cancel()
+	if err != nil {
+		logger.Log.Error("failed to load rooms", "error", err)
+		os.Exit(1)
+	}
 	logger.Log.Info(
 		"tcp server starting",
 		"host", cfg.TCP.Host,

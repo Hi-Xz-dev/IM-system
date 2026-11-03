@@ -10,7 +10,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-	
 var ErrRoomAlreadyExists = errors.New("room already exists")
 
 type RoomRepository struct {
@@ -56,4 +55,25 @@ func (r *RoomRepository) Create(
 	room.ID = id
 
 	return nil
+}
+
+// FindAll 加载房间资料，不包含在线成员。
+func (r *RoomRepository) FindAll(ctx context.Context) ([]model.Room, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT id, name FROM rooms ORDER BY id")
+	if err != nil {
+		return nil, fmt.Errorf("query rooms: %w", err)
+	}
+	defer rows.Close()
+	rooms := make([]model.Room, 0)
+	for rows.Next() {
+		var room model.Room
+		if err := rows.Scan(&room.ID, &room.Name); err != nil {
+			return nil, fmt.Errorf("scan room: %w", err)
+		}
+		rooms = append(rooms, room)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rooms: %w", err)
+	}
+	return rooms, nil
 }

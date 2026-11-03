@@ -4,14 +4,20 @@ import (
 	"IM-system/internal/auth"
 	"IM-system/internal/domain"
 	"IM-system/internal/message"
-	"IM-system/internal/repository"
+	"IM-system/internal/model"
 
 	"IM-system/room"
 	"IM-system/user"
 
+	"context"
 	"net"
 	"sync"
 )
+
+type RoomRepository interface {
+	Create(context.Context, *model.Room) error
+	FindAll(context.Context) ([]model.Room, error)
+}
 
 type Server struct {
 	//服务器监听地址
@@ -35,7 +41,7 @@ type Server struct {
 	//
 	authService *auth.Service
 	//房间信息持久
-	roomRepo *repository.RoomRepository
+	roomRepo RoomRepository
 	//个人资料持久
 	Profiles map[int64]*UserProfile
 	//信息持久
@@ -49,7 +55,7 @@ func NewServer(
 	ip string,
 	port int,
 	authService *auth.Service,
-	roomRepo *repository.RoomRepository,
+	roomRepo RoomRepository,
 	messageService *message.MessageService,
 ) *Server {
 	return &Server{

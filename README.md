@@ -40,7 +40,9 @@ docs/            HTTP 接口和通信命令说明
    mysql -u root -p im_system < migrations/003_create_messages.sql
    ```
 
-2. 修改 [internal/config/config.go](internal/config/config.go)，填写 MySQL 账号密码和 JWT 密钥。当前配置直接写在 Go 文件中，默认值如下：
+2. 检查 [internal/config/config.go](internal/config/config.go) 中的 MySQL 配置。默认使用 `root`、空密码连接本地数据库，仅在与你的实际配置不一致时修改；启动 MySQL 服务不等于登录或设置密码，Go 程序会自行连接。JWT 密钥通过环境变量 `JWT_SECRET` 提供，至少 32 字节，未设置或过短时服务会停止启动。使用 `openssl rand -hex 32` 生成随机密钥后，在启动服务的终端设置 `export JWT_SECRET='<替换为生成的随机密钥>'`；将实际密钥安全保存，不提交到 Git，后续启动保持相同值。更换密钥后，旧 Token 将无法验证。
+
+   其余默认配置如下：
 
    | 配置 | 默认值 |
    | --- | --- |

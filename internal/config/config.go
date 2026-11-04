@@ -1,5 +1,9 @@
 package config
 
+import (
+	"os"
+)
+
 type Config struct {
 	TCP   TCPConfig
 	HTTP  HTTPConfig
@@ -46,7 +50,7 @@ func Load() *Config {
 			DataName: "im_system",
 		},
 		JWT: JWTConfig{
-			Secret: "xx",
+			Secret: os.Getenv("JWT_SECRET"),
 		},
 	}
 }

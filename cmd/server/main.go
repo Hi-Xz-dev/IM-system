@@ -25,6 +25,10 @@ import (
 func main() {
 	logger.Init()
 	cfg := config.Load()
+	if len(cfg.JWT.Secret) < 32 {
+		logger.Log.Error("invalid configuration", "error", "JWT_SECRET must contain at least 32 bytes")
+		os.Exit(1)
+	}
 
 	//连接mysql
 	db, err := database.NewMySQL(cfg.MySQL)

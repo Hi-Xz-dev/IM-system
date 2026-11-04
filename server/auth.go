@@ -14,25 +14,19 @@ func (s *Server) authenticateConnection(
 ) (int64, string, error) {
 	//读取第一条信息
 	if !scanner.Scan() {
+		logger.Log.Warn("authentication failed", "protocol", "tcp", "reason", "read_failed")
 		return 0, "", errors.New("connection closed")
 	}
 
 	raw := scanner.Text()
-	logger.Log.Info(
-		"auth request",
-		"raw", raw,
-	)
 	cmd := protocol.Parse(raw)
-	logger.Log.Info(
-		"parsed command",
-		"type", cmd.Type,
-		"args", cmd.Args,
-	)
 	if cmd.Type != domain.CmdAuth {
+		logger.Log.Warn("authentication failed", "protocol", "tcp", "reason", "auth_required")
 		return 0, "", errors.New("need auth first")
 	}
 
 	if len(cmd.Args) != 1 {
+		logger.Log.Warn("authentication failed", "protocol", "tcp", "reason", "invalid_format")
 		return 0, "", errors.New("invalid auth format")
 	}
 
@@ -46,13 +40,10 @@ func (s *Server) authenticateConnection(
 		)
 
 	if err != nil {
-		logger.Log.Error(
-			"authenticate failed",
-			"error",
-			err,
-		)
+		logger.Log.Warn("authentication failed", "protocol", "tcp", "reason", "authentication_rejected")
 		return 0, "", err
 	}
 
+	logger.Log.Info("authentication succeeded", "protocol", "tcp", "user_id", userInfo.ID)
 	return userInfo.ID, userInfo.Nickname, nil
 }

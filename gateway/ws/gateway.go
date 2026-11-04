@@ -89,24 +89,18 @@ func (g *Gateway) Auth(conn *websocket.Conn) (int64, string, error) {
 	_, msg, err := conn.ReadMessage()
 
 	if err != nil {
+		logger.Log.Warn("authentication failed", "protocol", "websocket", "reason", "read_failed")
 		return 0, "", err
 	}
 	raw := string(msg)
-	logger.Log.Info(
-		"auth request",
-		"raw", raw,
-	)
 	cmd := protocol.Parse(raw)
-	logger.Log.Info(
-		"parsed command",
-		"type", cmd.Type,
-		"args", cmd.Args,
-	)
 	if cmd.Type != domain.CmdAuth {
+		logger.Log.Warn("authentication failed", "protocol", "websocket", "reason", "auth_required")
 		return 0, "", errors.New("need auth first")
 	}
 
 	if len(cmd.Args) != 1 {
+		logger.Log.Warn("authentication failed", "protocol", "websocket", "reason", "invalid_format")
 		return 0, "", errors.New("invalid auth format")
 	}
 
@@ -120,13 +114,10 @@ func (g *Gateway) Auth(conn *websocket.Conn) (int64, string, error) {
 		)
 
 	if err != nil {
-		logger.Log.Error(
-			"authenticate failed",
-			"error",
-			err,
-		)
+		logger.Log.Warn("authentication failed", "protocol", "websocket", "reason", "authentication_rejected")
 		return 0, "", err
 	}
 
+	logger.Log.Info("authentication succeeded", "protocol", "websocket", "user_id", userInfo.ID)
 	return userInfo.ID, userInfo.Nickname, nil
 }

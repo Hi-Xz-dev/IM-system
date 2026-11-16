@@ -14,4 +14,5 @@ type Message struct {
 	RoomName     *string
 	Content      string
 	CreatedAt    time.Time
+	MessageID    string
 }

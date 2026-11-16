@@ -46,7 +46,7 @@ func TestHTTPCreateRoomWithoutChatSession(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// 注入已认证身份，只验证创建接口；不模拟 JWT 或聊天连接。
 			repo := &roomCreateRepository{failure: tc.failure}
-			s := server.NewServer("", 0, nil, repo, nil)
+			s := server.NewServer("", 0, nil, repo, nil, nil)
 			h := NewHandler(s, nil, nil, nil)
 			router := gin.New()
 			router.POST("/api/rooms", func(c *gin.Context) { c.Set("user_id", int64(1)); h.CreateRoom(c) })

@@ -1,31 +1,42 @@
 package repository
 
 import (
-	"IM-system/internal/model"
-
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+
+	"IM-system/internal/model"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 type MessageRepository struct {
 	db *sql.DB
 }
 
+var ErrDuplicateKey = errors.New("duplicate key")
+
 func NewMessageRepository(db *sql.DB) *MessageRepository {
 	return &MessageRepository{
 		db: db,
 	}
 }
-//持久化
+
+// 持久化
 func (m *MessageRepository) Create(
 	ctx context.Context,
 	msg *model.Message,
 ) error {
 
+	if msg.MessageID == "" {
+		return fmt.Errorf("message ID is required")
+	}
+
 	result, err := m.db.ExecContext(
 		ctx,
 		`INSERT INTO messages (
+			message_id,
 			type,
 			from_id,
 			from_nickname,
@@ -35,7 +46,8 @@ func (m *MessageRepository) Create(
 			content,
 			created_at
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		msg.MessageID,
 		msg.Type,
 		msg.FromID,
 		msg.FromNickname,
@@ -46,6 +58,12 @@ func (m *MessageRepository) Create(
 		msg.CreatedAt,
 	)
 	if err != nil {
+		var mysqlErr *mysql.MySQLError
+
+		if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+			return fmt.Errorf("%w: %w", ErrDuplicateKey, err)
+		}
+
 		return err
 	}
 	//取出ID
@@ -203,4 +221,38 @@ func (r *MessageRepository) FindPrivateMessages(
 	}
 
 	return messages, nil
+}
+
+// 遇到重复时，根据 message_id 查询已有消息
+func (m *MessageRepository) FindByMessageID(
+	ctx context.Context,
+	messageID string,
+) (*model.Message, error) {
+	var msg model.Message
+
+	err := m.db.QueryRowContext(
+		ctx,
+		`SELECT
+			id, message_id, type, from_id, from_nickname,
+			to_id, room_id, room_name, content, created_at
+		FROM messages
+		WHERE message_id = ?`,
+		messageID,
+	).Scan(
+		&msg.ID,
+		&msg.MessageID,
+		&msg.Type,
+		&msg.FromID,
+		&msg.FromNickname,
+		&msg.ToID,
+		&msg.RoomID,
+		&msg.RoomName,
+		&msg.Content,
+		&msg.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("find message by message ID: %w", err)
+	}
+
+	return &msg, nil
 }

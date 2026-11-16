@@ -61,9 +61,8 @@ func (s *Server) SendPrivateMessage(
 		content,
 	)
 	msg.To = targetID
-	//临时判断
-	if s.messageService != nil {
-		s.PersistQueue <- msg
+	if err := s.publishMessage(msg); err != nil {
+		return err
 	}
 
 	data, err := protocol.EncodeMessage(msg)
@@ -113,9 +112,8 @@ func (s *Server) SendRoomMessage(
 	msg.RoomID = roomID
 	msg.RoomName = roomName
 
-	//临时测试
-	if s.messageService != nil {
-		s.PersistQueue <- msg
+	if err := s.publishMessage(msg); err != nil {
+		return err
 	}
 
 	data, err := protocol.EncodeMessage(msg)

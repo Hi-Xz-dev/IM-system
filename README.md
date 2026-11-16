@@ -29,7 +29,7 @@ docs/            HTTP 接口和通信命令说明
 
 ## 本地运行
 
-准备 Go 1.26.3 或更高版本（见 `go.mod`）和 MySQL 8。以下命令均在项目根目录执行。
+准备 Go 1.26.3 或更高版本（见 `go.mod`）、MySQL 8 和 RabbitMQ（支持 quorum 队列）。以下命令均在项目根目录执行。
 
 1. 创建数据库并按顺序导入表结构（已有表时无需重复执行）：
 
@@ -52,10 +52,11 @@ docs/            HTTP 接口和通信命令说明
    | 数据库 | `im_system` |
    | 数据库账号 / 密码 | `root` / 空密码 |
 
-3. 安装依赖并启动：
+3. 启动 RabbitMQ，设置连接地址后启动 Go 服务（本地 Homebrew 安装可使用 `brew services start rabbitmq`）：
 
    ```bash
    go mod download
+   export RABBITMQ_URL='amqp://guest:guest@127.0.0.1:5672/'
    go run ./cmd/server
    ```
 
@@ -63,9 +64,21 @@ docs/            HTTP 接口和通信命令说明
 
 ## 测试
 
+私聊与房间消息先发布到 RabbitMQ 的 `im.message.persist` 队列，确认接收且未被退回后再投递给在线用户。同一 Go 服务内的消费 goroutine 调用 `Persist` 写入 MySQL，成功后手动 ACK；消息 ID 唯一键和内容核对用于处理重复投递。系统通知与全服广播暂不落库。
+
+只有一个 Go 启动入口，无需另开发布或消费程序。发布确认不代表已经落库或客户端已收到；消费者出错时服务会退出，未确认消息留待后续投递，需要排查后手动重启，当前不提供自动重连、重试和死信处理。单节点 quorum 队列不具备多节点容灾能力。
+
+验证时登录两个账号，发送私聊或房间消息，再在 MySQL 查询 `SELECT id, message_id, content FROM messages ORDER BY id DESC LIMIT 10;`。可停止整个 Go 服务后重启，检查已有消息不重复；这不能代替“落库后、ACK 前中断”的故障实验。
+
 ```bash
 go test ./...
 go test -race ./...
+```
+
+可选的真实 MQ 集成测试使用专属临时队列，验证聊天发送、消费、幂等落库和 ACK，结束时删除测试队列与记录：
+
+```bash
+RABBITMQ_TEST_URL='amqp://guest:guest@127.0.0.1:5672/' go test ./server -run '^TestChatMQPersistence$' -v
 ```
 
 认证和消息仓储测试需要本地 MySQL，使用 `root` 空密码连接 `127.0.0.1:3306/im_system`，并需要提前建表；这些测试会写入并清理测试数据。

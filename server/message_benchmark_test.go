@@ -71,6 +71,7 @@ func BenchmarkBroadcastMessage(b *testing.B) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	const roomID int64 = 1

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"crypto/rand" //安全随机字符串生成
 	"time"
 )
 
@@ -27,6 +28,7 @@ type Message struct {
 
 func NewMessage(msgType MessageType, from int64, fromNickname, content string) Message {
 	return Message{
+		ID:           rand.Text(), // 生成随机唯一标识
 		Type:         msgType,
 		From:         from,
 		FromNickname: fromNickname,

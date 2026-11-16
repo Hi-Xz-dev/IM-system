@@ -3,8 +3,8 @@ package server
 import (
 	"testing"
 
-	"IM-system/user"
 	"IM-system/room"
+	"IM-system/user"
 )
 
 func TestRenameSync(t *testing.T) {
@@ -14,6 +14,7 @@ func TestRenameSync(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	const roomID int64 = 1
@@ -110,4 +111,3 @@ func TestRenameSync(t *testing.T) {
 		t.Fatal("rename must preserve membership on both sessions")
 	}
 }
-

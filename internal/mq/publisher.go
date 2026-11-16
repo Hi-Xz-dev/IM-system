@@ -86,6 +86,9 @@ func (r *RabbitMQ) waitPublishResult(ctx context.Context) error {
 
 			return nil
 
+			//有退回 → 发布失败
+			//没有退回，但收到 NACK → 发布失败
+			//没有退回，并且收到 ACK → 发布成功
 		case <-ctx.Done():
 			// 防止迟到的确认被下一次发布误用。
 			_ = r.conn.Close()

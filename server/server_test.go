@@ -13,6 +13,7 @@ func TestOnlineOffline(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	u := &user.User{
@@ -61,6 +62,7 @@ func TestOfflineDoubleCall(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	u := &user.User{

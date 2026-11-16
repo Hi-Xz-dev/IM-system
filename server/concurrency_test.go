@@ -18,7 +18,7 @@ func (l *lifecycleTestListener) Addr() net.Addr            { return nil }
 
 func TestConcurrentListenerRegistrationAndShutdown(t *testing.T) {
 	for range 50 {
-		s := NewServer("127.0.0.1", 0, nil, nil, nil)
+		s := NewServer("127.0.0.1", 0, nil, nil, nil, testMessagePublisher{})
 		listener := &lifecycleTestListener{}
 		var wg sync.WaitGroup
 		wg.Add(2)
@@ -41,7 +41,7 @@ func TestConcurrentListenerRegistrationAndShutdown(t *testing.T) {
 }
 
 func TestConcurrentActivityAndInactiveScan(t *testing.T) {
-	s := NewServer("127.0.0.1", 0, nil, nil, nil)
+	s := NewServer("127.0.0.1", 0, nil, nil, nil, testMessagePublisher{})
 	u := newRoomTestSession(1)
 	u.UpdateActiveTime()
 	s.Online(u)
@@ -69,7 +69,7 @@ func TestConcurrentActivityAndInactiveScan(t *testing.T) {
 
 func TestConcurrentPrivateChatAndSessionChurn(t *testing.T) {
 	logger.Init()
-	s := NewServer("127.0.0.1", 0, nil, nil, nil)
+	s := NewServer("127.0.0.1", 0, nil, nil, nil, testMessagePublisher{})
 	sender, target := newRoomTestSession(1), newRoomTestSession(2)
 	s.Online(sender)
 	s.Online(target)

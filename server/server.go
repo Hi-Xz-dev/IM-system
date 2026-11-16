@@ -19,6 +19,10 @@ type RoomRepository interface {
 	FindAll(context.Context) ([]model.Room, error)
 }
 
+type MessagePublisher interface {
+	Publish(context.Context, domain.Message) error
+}
+
 type Server struct {
 	//服务器监听地址
 	IP   string
@@ -46,8 +50,8 @@ type Server struct {
 	Profiles map[int64]*UserProfile
 	//信息持久
 	messageService *message.MessageService
-	//异步信息持久化
-	PersistQueue chan domain.Message
+	// 消息先由 MQ 确认接收，再异步落库。
+	messagePublisher MessagePublisher
 }
 
 // 创建一个server接口
@@ -57,18 +61,19 @@ func NewServer(
 	authService *auth.Service,
 	roomRepo RoomRepository,
 	messageService *message.MessageService,
+	messagePublisher MessagePublisher,
 ) *Server {
 	return &Server{
-		IP:             ip,
-		Port:           port,
-		OnlineUsers:    make(map[int64][]*user.User),
-		Message:        make(chan string, 100),
-		Rooms:          make(map[int64]*room.Room),
-		Disconnect:     make(chan *user.User, 100),
-		authService:    authService,
-		roomRepo:       roomRepo,
-		Profiles:       make(map[int64]*UserProfile),
-		messageService: messageService,
-		PersistQueue:   make(chan domain.Message, 1024),
+		IP:               ip,
+		Port:             port,
+		OnlineUsers:      make(map[int64][]*user.User),
+		Message:          make(chan string, 100),
+		Rooms:            make(map[int64]*room.Room),
+		Disconnect:       make(chan *user.User, 100),
+		authService:      authService,
+		roomRepo:         roomRepo,
+		Profiles:         make(map[int64]*UserProfile),
+		messageService:   messageService,
+		messagePublisher: messagePublisher,
 	}
 }

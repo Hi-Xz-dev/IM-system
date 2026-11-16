@@ -2,6 +2,7 @@ package message
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"testing"
 	"time"
@@ -43,6 +44,7 @@ func TestMessageServicePersistRoom(t *testing.T) {
 	}
 
 	msg := domain.Message{
+		ID:           rand.Text(),
 		Type:         domain.MessageRoom,
 		From:         1,
 		FromNickname: "Tom",
@@ -209,6 +211,7 @@ func TestMessageServicePersistPrivate(t *testing.T) {
 	}
 
 	msg := domain.Message{
+		ID:           rand.Text(),
 		Type:         domain.MessagePrivate,
 		From:         1,
 		FromNickname: "Tom",

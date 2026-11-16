@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ func TestMessageRepositoryCreate(t *testing.T) {
 	roomName := "golang"
 
 	msg := &model.Message{
+		MessageID:    rand.Text(),
 		Type:         "room",
 		FromID:       1,
 		FromNickname: "Tom",
@@ -124,6 +126,7 @@ func TestFindByRoomID(t *testing.T) {
 
 	// 3. 准备 roomID=1 的第一条消息
 	msg1 := &model.Message{
+		MessageID:    rand.Text(),
 		Type:         "room",
 		FromID:       5,
 		FromNickname: "Tom",
@@ -135,6 +138,7 @@ func TestFindByRoomID(t *testing.T) {
 
 	// roomID=1 的第二条消息
 	msg2 := &model.Message{
+		MessageID:    rand.Text(),
 		Type:         "room",
 		FromID:       6,
 		FromNickname: "Jerry",
@@ -146,6 +150,7 @@ func TestFindByRoomID(t *testing.T) {
 
 	// roomID=2，用来验证不会被查出来
 	msg3 := &model.Message{
+		MessageID:    rand.Text(),
 		Type:         "room",
 		FromID:       7,
 		FromNickname: "Alice",
@@ -273,6 +278,7 @@ func TestFindPrivateMessages(t *testing.T) {
 	toBob := int64(2)
 
 	msg1 := &model.Message{
+		MessageID:    rand.Text(),
 		Type:         "private",
 		FromID:       1,
 		FromNickname: "Alice",
@@ -285,6 +291,7 @@ func TestFindPrivateMessages(t *testing.T) {
 	toAlice := int64(1)
 
 	msg2 := &model.Message{
+		MessageID:    rand.Text(),
 		Type:         "private",
 		FromID:       2,
 		FromNickname: "Bob",
@@ -297,6 +304,7 @@ func TestFindPrivateMessages(t *testing.T) {
 	toOther := int64(3)
 
 	msg3 := &model.Message{
+		MessageID:    rand.Text(),
 		Type:         "private",
 		FromID:       1,
 		FromNickname: "Alice",

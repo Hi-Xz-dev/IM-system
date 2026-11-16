@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"fmt"
 	"sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -15,7 +16,10 @@ type RabbitMQ struct {
 	publishMu sync.Mutex
 }
 
-func NewRabbitMQ(url string) (*RabbitMQ, error) {
+func NewRabbitMQ(url string, queueName string) (*RabbitMQ, error) {
+	if queueName == "" {
+		return nil, fmt.Errorf("queue name is required")
+	}
 	conn, err := amqp.Dial(url)
 	if err != nil {
 		return nil, err
@@ -37,11 +41,11 @@ func NewRabbitMQ(url string) (*RabbitMQ, error) {
 		make(chan amqp.Return, 1),
 	)
 	q, err := ch.QueueDeclare(
-		"im.message.persist", // 队列名称
-		true,                 // durable：持久化队列
-		false,                // autoDelete：不用时不自动删除
-		false,                // exclusive：不独占，允许其他连接使用
-		false,                // noWait：等待声明结果
+		queueName, // 队列名称由调用方指定，便于隔离正式与测试队列。
+		true,      // durable：持久化队列
+		false,     // autoDelete：不用时不自动删除
+		false,     // exclusive：不独占，允许其他连接使用
+		false,     // noWait：等待声明结果
 		amqp.Table{
 			"x-queue-type": "quorum", // 使用 quorum 队列
 		},

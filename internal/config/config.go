@@ -9,6 +9,12 @@ type Config struct {
 	HTTP  HTTPConfig
 	MySQL MySQLConfig
 	JWT   JWTConfig
+	MQ    MQConfig
+}
+
+type MQConfig struct {
+	URL       string
+	QueueName string
 }
 
 type JWTConfig struct {
@@ -51,6 +57,10 @@ func Load() *Config {
 		},
 		JWT: JWTConfig{
 			Secret: os.Getenv("JWT_SECRET"),
+		},
+		MQ: MQConfig{
+			URL:       os.Getenv("RABBITMQ_URL"),
+			QueueName: "im.message.persist",
 		},
 	}
 }

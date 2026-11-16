@@ -18,6 +18,7 @@ func BenchmarkJoinRoomUnsafe(b *testing.B) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	const roomID int64 = 1
@@ -67,6 +68,7 @@ func BenchmarkLeaveJoinRoomUnsafe(b *testing.B) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	const roomID int64 = 1

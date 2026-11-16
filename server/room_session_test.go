@@ -17,7 +17,7 @@ func newRoomTestSession(id int64) *user.User {
 
 func setupRoomSessions(t *testing.T) (*Server, *room.Room, *user.User, *user.User, *user.User) {
 	t.Helper()
-	s := NewServer("127.0.0.1", 0, nil, nil, nil)
+	s := NewServer("127.0.0.1", 0, nil, nil, nil, testMessagePublisher{})
 	newSession := func(id int64) *user.User {
 		u := &user.User{
 			ID: id, Nickname: "test", C: make(chan string, 100),
@@ -40,7 +40,7 @@ func setupRoomSessions(t *testing.T) (*Server, *room.Room, *user.User, *user.Use
 func TestJoinSynchronizesAccountSessions(t *testing.T) {
 	for _, entry := range []string{"command", "http", "create"} {
 		t.Run(entry, func(t *testing.T) {
-			s := NewServer("127.0.0.1", 0, nil, nil, nil)
+			s := NewServer("127.0.0.1", 0, nil, nil, nil, testMessagePublisher{})
 			a1, a2 := newRoomTestSession(1), newRoomTestSession(1)
 			s.Online(a1)
 			s.Online(a2)
@@ -95,7 +95,7 @@ func TestNewSessionInheritsOnlyOnlineMembership(t *testing.T) {
 
 func TestJoinAndNewSessionConcurrent(t *testing.T) {
 	for range 10 {
-		s := NewServer("127.0.0.1", 0, nil, nil, nil)
+		s := NewServer("127.0.0.1", 0, nil, nil, nil, testMessagePublisher{})
 		a1, a2 := newRoomTestSession(1), newRoomTestSession(1)
 		s.Online(a1)
 		s.AddRoom(room.NewRoom(1, "test"))

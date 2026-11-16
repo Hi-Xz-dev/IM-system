@@ -16,7 +16,7 @@ func TestTCPAuthLogOmitsCredentials(t *testing.T) {
 	previous := logger.Log
 	logger.Log = slog.New(slog.NewJSONHandler(&logs, nil))
 	t.Cleanup(func() { logger.Log = previous })
-	s := NewServer("", 0, auth.NewService(nil, auth.NewJWTService("test-key")), nil, nil)
+	s := NewServer("", 0, auth.NewService(nil, auth.NewJWTService("test-key")), nil, nil, testMessagePublisher{})
 	for _, input := range []string{
 		"auth|sensitive-token-marker",
 		"auth|sensitive-token-marker|extra",

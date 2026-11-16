@@ -38,7 +38,7 @@ func (r *memoryRoomRepository) FindAll(context.Context) ([]model.Room, error) {
 
 func TestPersistentEmptyRoomsAndRestart(t *testing.T) {
 	repo := &memoryRoomRepository{}
-	s := NewServer("", 0, nil, repo, nil)
+	s := NewServer("", 0, nil, repo, nil, testMessagePublisher{})
 	u := newRoomTestSession(1)
 	s.Online(u)
 	id, err := s.CreateRoom(u, "Go")
@@ -55,7 +55,7 @@ func TestPersistentEmptyRoomsAndRestart(t *testing.T) {
 		t.Fatal("disconnect must preserve an empty room")
 	}
 
-	restarted := NewServer("", 0, nil, repo, nil)
+	restarted := NewServer("", 0, nil, repo, nil, testMessagePublisher{})
 	if err := restarted.LoadRooms(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestCreateRoomWithoutChatConnection(t *testing.T) {
 	for _, disconnectDuringWrite := range []bool{false, true} {
 		t.Run(map[bool]string{false: "offline", true: "disconnect during insert"}[disconnectDuringWrite], func(t *testing.T) {
 			repo := &memoryRoomRepository{}
-			s := NewServer("", 0, nil, repo, nil)
+			s := NewServer("", 0, nil, repo, nil, testMessagePublisher{})
 			if disconnectDuringWrite {
 				u := newRoomTestSession(1)
 				s.Online(u)
@@ -100,7 +100,7 @@ func TestCreateRoomWithoutChatConnection(t *testing.T) {
 
 func TestRoomStorageFailureDoesNotPublishState(t *testing.T) {
 	failure := errors.New("storage unavailable")
-	s := NewServer("", 0, nil, &memoryRoomRepository{failure: failure}, nil)
+	s := NewServer("", 0, nil, &memoryRoomRepository{failure: failure}, nil, testMessagePublisher{})
 	if _, err := s.CreateRoomForUser(context.Background(), 1, "Go"); !errors.Is(err, failure) {
 		t.Fatalf("expected insert error, got %v", err)
 	}

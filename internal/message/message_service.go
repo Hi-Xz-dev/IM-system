@@ -2,6 +2,7 @@ package message
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"IM-system/internal/domain"
@@ -21,6 +22,7 @@ func NewMessageService(
 	}
 }
 
+// 把一条聊天消息保存到数据库
 func (s *MessageService) Persist(
 	ctx context.Context,
 	msg domain.Message,
@@ -31,6 +33,7 @@ func (s *MessageService) Persist(
 		FromNickname: msg.FromNickname,
 		Content:      msg.Content,
 		CreatedAt:    msg.Time,
+		MessageID:    msg.ID,
 	}
 
 	switch msg.Type {
@@ -54,14 +57,39 @@ func (s *MessageService) Persist(
 		// 普通文本消息按后续业务定义处理
 	}
 
-	if err := s.messageRepo.Create(ctx, dbMsg); err != nil {
-		return fmt.Errorf(
-			"persist message: %w",
-			err,
-		)
+	err := s.messageRepo.Create(ctx, dbMsg)
+	if err == nil {
+		return nil // 首次写入成功
 	}
 
-	return nil
+	if !errors.Is(err, repository.ErrDuplicateKey) {
+		return fmt.Errorf("persist message: %w", err)
+	}
+
+	// 唯一键重复，查询已有消息
+	existing, err := s.messageRepo.FindByMessageID(ctx, dbMsg.MessageID)
+	if err != nil {
+		return fmt.Errorf("find existing message: %w", err)
+	}
+
+	// 核对是不是同一条消息
+	if existing.Type != dbMsg.Type ||
+		existing.FromID != dbMsg.FromID ||
+		existing.Content != dbMsg.Content ||
+		!sameOptional(existing.ToID, dbMsg.ToID) ||
+		!sameOptional(existing.RoomID, dbMsg.RoomID) {
+		return fmt.Errorf("message ID conflict: %s", dbMsg.MessageID)
+	}
+
+	return nil // 同一条消息已经落库，重复消费也算成功
+}
+
+// 辅助函数 泛型函数
+func sameOptional[T comparable](a, b *T) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
 
 func toDomainMessages(

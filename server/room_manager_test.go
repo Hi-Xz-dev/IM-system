@@ -12,7 +12,7 @@ import (
 
 func TestRoomJoinLeave(t *testing.T) {
 
-	s := NewServer("127.0.0.1", 8080, nil, nil, nil)
+	s := NewServer("127.0.0.1", 8080, nil, nil, nil, testMessagePublisher{})
 
 	const roomID int64 = 1
 
@@ -113,6 +113,7 @@ func TestRoomChat(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	// 建立完整运行时状态：
@@ -170,6 +171,7 @@ func TestJoinNonExistentRoom(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	const roomID int64 = 1
@@ -212,6 +214,7 @@ func TestLeaveNonJoinedRoom(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	const roomID int64 = 1
@@ -285,6 +288,7 @@ func TestConcurrentRoomJoin(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	const roomID int64 = 1
@@ -362,6 +366,7 @@ func TestConcurrentOffline(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	const roomID int64 = 1

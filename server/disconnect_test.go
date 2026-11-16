@@ -25,9 +25,9 @@ func TestListenDisconnect(t *testing.T) {
 	s.Disconnect <- u
 
 	time.Sleep(100 * time.Millisecond)
-	
+
 	s.mapLock.RLock()
-	
+
 	if _, ok := s.OnlineUsers[u.ID]; ok {
 
 		s.mapLock.RUnlock()

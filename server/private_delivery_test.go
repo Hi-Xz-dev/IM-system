@@ -24,7 +24,7 @@ func TestPrivateChatDeliveryResult(t *testing.T) {
 		{name: "service error", readyTargets: 1, missingProfile: true, want: "私聊发送失败，请稍后重试"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := NewServer("127.0.0.1", 0, nil, nil, nil)
+			s := NewServer("127.0.0.1", 0, nil, nil, nil, testMessagePublisher{})
 			sender := &user.User{ID: 1, C: make(chan string, 10)}
 			if !tc.missingProfile {
 				s.Profiles[1] = &UserProfile{ID: 1, Nickname: "sender"}

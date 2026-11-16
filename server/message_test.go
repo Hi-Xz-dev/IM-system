@@ -55,6 +55,7 @@ func TestPrivateChat(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		testMessagePublisher{},
 	)
 
 	s.mapLock.Lock()

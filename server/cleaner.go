@@ -7,12 +7,23 @@ import (
 
 // 超时强踢功能 当前实现（连接级踢出）
 func (s *Server) CleanOnlineUser() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
 	for {
+		select {
+		case <-s.done:
+			return
+		default:
+		}
 		kickList := s.inactiveUsers(time.Now())
 		for _, u := range kickList {
 			s.Offline(u)
 		}
-		time.Sleep(10 * time.Second)
+		select {
+		case <-s.done:
+			return
+		case <-ticker.C:
+		}
 	}
 }
 

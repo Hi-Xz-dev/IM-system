@@ -40,8 +40,11 @@ type Server struct {
 	//服务端的 TCP 监听器
 	listener net.Listener
 	// 生命周期锁保护 listener 和 isShutdown，不跨越网络 IO。
-	lifecycleMu sync.Mutex
-	isShutdown  bool
+	lifecycleMu    sync.Mutex
+	isShutdown     bool
+	done           chan struct{}
+	workerWG       sync.WaitGroup
+	workersStarted bool
 	//
 	authService *auth.Service
 	//房间信息持久
@@ -70,6 +73,7 @@ func NewServer(
 		Message:          make(chan string, 100),
 		Rooms:            make(map[int64]*room.Room),
 		Disconnect:       make(chan *user.User, 100),
+		done:             make(chan struct{}),
 		authService:      authService,
 		roomRepo:         roomRepo,
 		Profiles:         make(map[int64]*UserProfile),

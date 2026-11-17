@@ -156,7 +156,10 @@ func (s *Server) BroadcastSystemMessage(
 		return fmt.Errorf("encode broadcast message: %w", err)
 	}
 
-	s.Message <- string(data)
-
-	return nil
+	select {
+	case <-s.done:
+		return fmt.Errorf("server is shutting down")
+	case s.Message <- string(data):
+		return nil
+	}
 }

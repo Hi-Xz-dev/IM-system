@@ -115,7 +115,11 @@ func run() error {
 		"port", cfg.TCP.Port,
 	)
 	// TCP服务
-	go s.Start()
+	tcpErr := make(chan error, 1)
+
+	go func() {
+		tcpErr <- s.Start()
+	}()
 
 	// gin服务
 	//r := gin.Default()
@@ -164,6 +168,13 @@ func run() error {
 	case err := <-consumerErr:
 		// 基础版本不自动重试；退出服务，避免消费者已停而业务继续无声积压。
 		return fmt.Errorf("message consumer stopped: %w", err)
+
+	case err := <-tcpErr:
+		if err != nil {
+			return fmt.Errorf("tcp server stopped: %w", err)
+		}
+		return nil
+
 	case err := <-httpErr:
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil

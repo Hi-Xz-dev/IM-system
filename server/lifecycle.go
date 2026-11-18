@@ -37,7 +37,7 @@ func (s *Server) Start() error {
 			return fmt.Errorf("accept tcp: %w", err)
 		}
 		//do handler
-		go s.Handler(conn) //goroutine
+		s.startTCPHandler(conn)
 	}
 }
 
@@ -51,9 +51,17 @@ func (s *Server) Shutdown() {
 		}
 	}
 	listener := s.listener
+	connections := make([]net.Conn, 0, len(s.tcpConnections))
+	for conn := range s.tcpConnections {
+		connections = append(connections, conn)
+	}
 	s.lifecycleMu.Unlock()
 	if listener != nil {
 		_ = listener.Close()
+	}
+	// 包括尚未认证的连接；关闭 socket 可解除认证/读循环的网络等待。
+	for _, conn := range connections {
+		_ = conn.Close()
 	}
 	s.mapLock.RLock()
 
@@ -72,6 +80,7 @@ func (s *Server) Shutdown() {
 		s.Offline(u)
 	}
 	s.workerWG.Wait()
+	s.tcpHandlerWG.Wait()
 }
 
 // 与关闭状态共用锁，确保 Shutdown 开始等待后，不会再增加后台任务。

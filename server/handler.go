@@ -9,11 +9,15 @@ import (
 
 // handler
 func (s *Server) Handler(conn net.Conn) {
+	defer conn.Close()
 
 	scanner := bufio.NewScanner(conn)
 	userID, nickname, err := s.authenticateConnection(scanner)
 
 	if err != nil {
+		if s.isShuttingDown() {
+			return
+		}
 		conn.Write([]byte("[系统] 认证失败\n"))
 		conn.Close()
 		return
@@ -27,8 +31,21 @@ func (s *Server) Handler(conn net.Conn) {
 		nickname,
 		addr,
 	)
+	if s.isShuttingDown() {
+		usr.Close()
+		return
+	}
 
-	go usr.ListenMessage(s.Disconnect)
+	writerDone := make(chan struct{})
+	go func() {
+		defer close(writerDone)
+		usr.ListenMessage(s.Disconnect)
+	}()
+	defer func() {
+		s.Offline(usr)
+		usr.Close()
+		<-writerDone
+	}()
 
 	//用户上线业务
 	s.Online(usr)

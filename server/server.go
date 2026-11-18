@@ -45,6 +45,9 @@ type Server struct {
 	done           chan struct{}
 	workerWG       sync.WaitGroup
 	workersStarted bool
+	tcpConnections map[net.Conn]struct{}
+	//等待任务完成的计数器
+	tcpHandlerWG   sync.WaitGroup
 	//
 	authService *auth.Service
 	//房间信息持久
@@ -74,6 +77,7 @@ func NewServer(
 		Rooms:            make(map[int64]*room.Room),
 		Disconnect:       make(chan *user.User, 100),
 		done:             make(chan struct{}),
+		tcpConnections:   make(map[net.Conn]struct{}),
 		authService:      authService,
 		roomRepo:         roomRepo,
 		Profiles:         make(map[int64]*UserProfile),

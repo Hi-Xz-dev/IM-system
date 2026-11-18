@@ -10,6 +10,7 @@ import (
 	"IM-system/user"
 
 	"context"
+	"io"
 	"net"
 	"sync"
 )
@@ -39,15 +40,15 @@ type Server struct {
 	Disconnect chan *user.User
 	//服务端的 TCP 监听器
 	listener net.Listener
-	// 生命周期锁保护 listener 和 isShutdown，不跨越网络 IO。
+	// 生命周期锁协调关闭状态、监听器和连接登记，不跨越网络 IO。
 	lifecycleMu    sync.Mutex
 	isShutdown     bool
 	done           chan struct{}
 	workerWG       sync.WaitGroup
 	workersStarted bool
-	tcpConnections map[net.Conn]struct{}
+	connections    map[io.Closer]struct{}
 	//等待任务完成的计数器
-	tcpHandlerWG   sync.WaitGroup
+	connectionWG sync.WaitGroup
 	//
 	authService *auth.Service
 	//房间信息持久
@@ -77,7 +78,7 @@ func NewServer(
 		Rooms:            make(map[int64]*room.Room),
 		Disconnect:       make(chan *user.User, 100),
 		done:             make(chan struct{}),
-		tcpConnections:   make(map[net.Conn]struct{}),
+		connections:      make(map[io.Closer]struct{}),
 		authService:      authService,
 		roomRepo:         roomRepo,
 		Profiles:         make(map[int64]*UserProfile),

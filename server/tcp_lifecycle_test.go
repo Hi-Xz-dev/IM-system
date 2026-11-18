@@ -28,7 +28,7 @@ func TestShutdownClosesUnauthenticatedTCP(t *testing.T) {
 		t.Fatal("shutdown did not release unauthenticated TCP read")
 	}
 	s.lifecycleMu.Lock()
-	remaining := len(s.tcpConnections)
+	remaining := len(s.connections)
 	s.lifecycleMu.Unlock()
 	if remaining != 0 {
 		t.Fatalf("shutdown returned with %d tracked connections", remaining)
@@ -50,7 +50,7 @@ func TestTCPRegistrationAndShutdownRace(t *testing.T) {
 		go func() { defer wg.Done(); s.Shutdown() }()
 		wg.Wait()
 		s.lifecycleMu.Lock()
-		remaining := len(s.tcpConnections)
+		remaining := len(s.connections)
 		s.lifecycleMu.Unlock()
 		_ = client.Close()
 		if remaining != 0 {

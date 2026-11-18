@@ -44,17 +44,19 @@ func (g *Gateway) Handler(c *gin.Context) {
 		return
 	}
 
-	userID, nickname, err := g.Auth(conn)
-	if err != nil {
-		conn.WriteMessage(
-			websocket.TextMessage,
-			[]byte("[系统]认证失败"),
-		)
-
-		conn.Close()
+	finish, ok := g.server.TrackConnection(conn)
+	if !ok {
+		_ = conn.Close()
 		return
 	}
+	defer finish()
+
+	userID, nickname, err := g.Auth(conn)
 	wsConn := connection.NewWSConnection(conn)
+	if err != nil {
+		_ = wsConn.Write([]byte("[系统]认证失败"))
+		return
+	}
 
 	usr :=
 		user.NewUser(
@@ -66,23 +68,19 @@ func (g *Gateway) Handler(c *gin.Context) {
 
 	g.server.Online(usr)
 
-	go usr.ListenMessage(g.server.Disconnect)
-
-	usr.SendMsg("[系统] 认证成功")
-
-	reader := connection.NewWSReader(conn)
-	//结束通知
-	done := make(chan struct{})
-
+	writerDone := make(chan struct{})
 	go func() {
-		g.server.ServerReader(reader, usr)
-		close(done)
+		defer close(writerDone)
+		usr.ListenMessage(g.server.Disconnect)
+	}()
+	defer func() {
+		g.server.Offline(usr)
+		usr.Close()
+		<-writerDone
 	}()
 
-	<-done
-
-	g.server.Offline(usr)
-
+	usr.SendMsg("[系统] 认证成功")
+	g.server.ServerReader(connection.NewWSReader(conn), usr)
 }
 
 func (g *Gateway) Auth(conn *websocket.Conn) (int64, string, error) {

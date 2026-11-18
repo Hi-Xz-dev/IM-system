@@ -4,6 +4,7 @@ import (
 	"IM-system/internal/logger"
 	"IM-system/user"
 	"fmt"
+	"io"
 	"net"
 )
 
@@ -51,8 +52,8 @@ func (s *Server) Shutdown() {
 		}
 	}
 	listener := s.listener
-	connections := make([]net.Conn, 0, len(s.tcpConnections))
-	for conn := range s.tcpConnections {
+	connections := make([]io.Closer, 0, len(s.connections))
+	for conn := range s.connections {
 		connections = append(connections, conn)
 	}
 	s.lifecycleMu.Unlock()
@@ -80,7 +81,25 @@ func (s *Server) Shutdown() {
 		s.Offline(u)
 	}
 	s.workerWG.Wait()
-	s.tcpHandlerWG.Wait()
+	s.connectionWG.Wait()
+}
+
+// TrackConnection 登记一条连接。调用方负责在所有读写任务结束后调用返回的清理函数。
+func (s *Server) TrackConnection(conn io.Closer) (finish func(), ok bool) {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	if s.isShutdown {
+		return nil, false
+	}
+	s.connections[conn] = struct{}{}
+	s.connectionWG.Add(1)
+	return func() {
+		_ = conn.Close()
+		s.lifecycleMu.Lock()
+		delete(s.connections, conn)
+		s.lifecycleMu.Unlock()
+		s.connectionWG.Done()
+	}, true
 }
 
 // 与关闭状态共用锁，确保 Shutdown 开始等待后，不会再增加后台任务。

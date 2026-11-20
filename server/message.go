@@ -144,9 +144,13 @@ func (s *Server) BroadcastSystemMessage(
 		return fmt.Errorf("user profile not found")
 	}
 
+	return s.broadcastSystemMessage(usr.ID, nickname, content)
+}
+
+func (s *Server) broadcastSystemMessage(userID int64, nickname, content string) error {
 	msg := domain.NewMessage(
 		domain.MessageSystem,
-		usr.ID,
+		userID,
 		nickname,
 		content,
 	)

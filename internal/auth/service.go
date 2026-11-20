@@ -110,6 +110,14 @@ func (s *Service) UpdateNickname(ctx context.Context, userID int64, nickname str
 	return nickname, nil
 }
 
+func (s *Service) GetNickname(ctx context.Context, userID int64) (string, error) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	return user.Nickname, nil
+}
+
 // 登录
 func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, error) {
 	input.Username = strings.TrimSpace(input.Username)

@@ -232,12 +232,12 @@
 
 **位置：** [nickname.go](../server/nickname.go)、[user_service.go](../server/user_service.go)、[user_repository.go](../internal/repository/user_repository.go)。
 
-**现状：** 聊天命令和 HTTP 改名共用一条流程。更新 MySQL 成功后才更新同账号共享的在线 Profile，登录和重新认证从 MySQL 读取昵称。注册和改名共用昵称校验，均允许昵称重复，登录用户名继续由数据库保证唯一。最后一个连接离线后仍保留 Profile，清理策略待处理。
+**现状：** 聊天命令和 HTTP 改名共用一条流程。更新 MySQL 成功后才更新同账号共享的在线 Profile。注册和改名共用昵称校验，均允许昵称重复，登录用户名继续由数据库保证唯一。最后一条连接下线时删除 Profile。账号重新上线时从 MySQL 加载昵称，并与改名协调，避免用认证阶段读到的旧值重建 Profile。
 
 **检查步骤：** 改名后调用登录、建立新连接并重启服务，对比昵称；大量不同账号登录退出后检查 Profile 数量；检查重名规则是否与注册流程一致。
 
 - [x] 昵称写入 MySQL 后同步在线 Profile，登录和重新认证读取同一份持久化数据。
-- [ ] Profile 有明确的保留、清理或缓存淘汰策略。
+- [x] Profile 仅在账号在线期间保留，最后一端下线时清理。
 - [x] 注册和改名均允许昵称重复。
 
 ## 11 连接资源边界不足

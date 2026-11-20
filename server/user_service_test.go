@@ -19,12 +19,47 @@ func (s *nicknameAccountService) Authenticate(context.Context, string) (*model.U
 	return nil, errors.New("authentication unsupported")
 }
 
+func (s *nicknameAccountService) GetNickname(context.Context, int64) (string, error) {
+	return s.nickname, nil
+}
+
 func (s *nicknameAccountService) UpdateNickname(_ context.Context, _ int64, nickname string) (string, error) {
 	if s.err != nil {
 		return "", s.err
 	}
 	s.nickname = nickname
 	return nickname, nil
+}
+
+func TestProfileLivesUntilLastSessionLeaves(t *testing.T) {
+	accounts := &nicknameAccountService{nickname: "Tom"}
+	s := NewServer("", 0, accounts, nil, nil, nil)
+	ctx := context.Background()
+	first, second, reconnected := newRoomTestSession(1), newRoomTestSession(1), newRoomTestSession(1)
+	// 模拟认证先读到旧昵称，稍后才进入上线流程。
+	reconnected.Nickname = "Tom"
+	for _, session := range []*user.User{first, second} {
+		if err := s.OnlineAuthenticated(ctx, session); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.RenameH(ctx, 1, "Jerry"); err != nil {
+		t.Fatal(err)
+	}
+	s.Offline(first)
+	if nickname, ok := s.GetNickname(1); !ok || nickname != "Jerry" {
+		t.Fatalf("second session should keep profile, got %q (%t)", nickname, ok)
+	}
+	s.Offline(second)
+	if _, ok := s.GetNickname(1); ok {
+		t.Fatal("last session did not release the profile")
+	}
+	if err := s.OnlineAuthenticated(ctx, reconnected); err != nil {
+		t.Fatal(err)
+	}
+	if nickname, ok := s.GetNickname(1); !ok || nickname != "Jerry" {
+		t.Fatalf("reconnect restored stale profile, got %q (%t)", nickname, ok)
+	}
 }
 
 func TestRenameSync(t *testing.T) {

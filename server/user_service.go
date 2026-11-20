@@ -7,12 +7,53 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // 用户上线业务
 func (s *Server) Online(usr *user.User) {
-	//用户上线，将用户加入OnlineUsers
 	s.mapLock.Lock()
+	s.onlineLocked(usr, usr.Nickname)
+	s.mapLock.Unlock()
+	_ = s.BroadcastSystemMessage(usr, "上线")
+}
+
+// OnlineAuthenticated 使用当前在线资料，或在首端上线时从数据库加载。
+func (s *Server) OnlineAuthenticated(ctx context.Context, usr *user.User) error {
+	if err := s.registerAuthenticatedSession(ctx, usr); err != nil {
+		return err
+	}
+	_ = s.BroadcastSystemMessage(usr, "上线")
+	return nil
+}
+
+func (s *Server) registerAuthenticatedSession(ctx context.Context, usr *user.User) error {
+	// 首端上线加载与改名串行，避免使用认证阶段读到的旧昵称。
+	s.renameMu.Lock()
+	defer s.renameMu.Unlock()
+
+	s.mapLock.Lock()
+	if profile := s.Profiles[usr.ID]; profile != nil {
+		s.onlineLocked(usr, profile.Nickname)
+		s.mapLock.Unlock()
+		return nil
+	}
+	s.mapLock.Unlock()
+
+	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	nickname, err := s.authService.GetNickname(dbCtx, usr.ID)
+	if err != nil {
+		return fmt.Errorf("load online nickname: %w", err)
+	}
+
+	s.mapLock.Lock()
+	s.onlineLocked(usr, nickname)
+	s.mapLock.Unlock()
+	return nil
+}
+
+func (s *Server) onlineLocked(usr *user.User, nickname string) {
 	// 聊天室成员关系只在账号在线期间保留，新端继承其他在线端的房间。
 	for _, session := range s.OnlineUsers[usr.ID] {
 		for roomID := range session.JoinedRooms {
@@ -27,12 +68,9 @@ func (s *Server) Online(usr *user.User) {
 	if _, ok := s.Profiles[usr.ID]; !ok {
 		s.Profiles[usr.ID] = &UserProfile{
 			ID:       usr.ID,
-			Nickname: usr.Nickname,
+			Nickname: nickname,
 		}
 	}
-	s.mapLock.Unlock()
-	//广播当前用户上线信息
-	s.BroadcastSystemMessage(usr, "上线")
 }
 
 // 用户下线业务
@@ -64,8 +102,14 @@ func (s *Server) Offline(usr *user.User) {
 		}
 	}
 
+	profile := s.Profiles[usr.ID]
+	var nickname string
+	if profile != nil {
+		nickname = profile.Nickname
+	}
 	if len(users) == 0 {
 		delete(s.OnlineUsers, usr.ID)
+		delete(s.Profiles, usr.ID)
 	} else {
 		s.OnlineUsers[usr.ID] = users
 	}
@@ -74,7 +118,9 @@ func (s *Server) Offline(usr *user.User) {
 
 	usr.Close()
 
-	s.BroadcastSystemMessage(usr, "已下线")
+	if profile != nil {
+		_ = s.broadcastSystemMessage(usr.ID, nickname, "已下线")
+	}
 }
 
 // 查询用户加入房间列表

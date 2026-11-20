@@ -4,6 +4,7 @@ import (
 	"IM-system/internal/connection"
 	"IM-system/user"
 	"bufio"
+	"context"
 	"net"
 )
 
@@ -35,6 +36,10 @@ func (s *Server) Handler(conn net.Conn) {
 		usr.Close()
 		return
 	}
+	if err := s.OnlineAuthenticated(context.Background(), usr); err != nil {
+		_ = tcpConn.Write([]byte("[系统] 上线失败，请稍后重试\n"))
+		return
+	}
 
 	writerDone := make(chan struct{})
 	go func() {
@@ -47,8 +52,6 @@ func (s *Server) Handler(conn net.Conn) {
 		<-writerDone
 	}()
 
-	//用户上线业务
-	s.Online(usr)
 	//认证成功
 	tcpConn.Write([]byte("[系统] 认证成功\n"))
 

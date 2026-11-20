@@ -26,6 +26,7 @@ type MessagePublisher interface {
 type UserAccountService interface {
 	Authenticate(context.Context, string) (*model.User, error)
 	UpdateNickname(context.Context, int64, string) (string, error)
+	GetNickname(context.Context, int64) (string, error)
 }
 
 type Server struct {

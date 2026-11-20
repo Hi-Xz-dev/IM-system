@@ -63,7 +63,9 @@ func (s *Server) updateNickname(ctx context.Context, userID int64, newName strin
 
 	s.mapLock.Lock()
 	defer s.mapLock.Unlock()
-	profile.Nickname = nickname
+	if current := s.Profiles[userID]; current != nil {
+		current.Nickname = nickname
+	}
 	var session *user.User
 	if sessions := s.OnlineUsers[userID]; len(sessions) > 0 {
 		session = sessions[0]

@@ -66,7 +66,10 @@ func (g *Gateway) Handler(c *gin.Context) {
 			c.Request.RemoteAddr,
 		)
 
-	g.server.Online(usr)
+	if err := g.server.OnlineAuthenticated(c.Request.Context(), usr); err != nil {
+		_ = wsConn.Write([]byte("[系统] 上线失败，请稍后重试"))
+		return
+	}
 
 	writerDone := make(chan struct{})
 	go func() {

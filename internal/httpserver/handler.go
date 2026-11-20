@@ -205,12 +205,18 @@ func (h *Handler) Rename(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, Fail("invalid new user name"))
 		return
 	}
-	msg, success := h.server.RenameH(userID, req.Name)
-	if !success {
-		c.JSON(http.StatusNotFound, Fail(msg))
-		return
+	err := h.server.RenameH(c.Request.Context(), userID, req.Name)
+	switch {
+	case err == nil:
+		c.JSON(http.StatusOK, OK("修改用户名成功"))
+	case errors.Is(err, auth.ErrInvalidNickname):
+		c.JSON(http.StatusBadRequest, Fail("昵称须为 1 到 64 个字符"))
+	case errors.Is(err, server.ErrRenameUserOffline):
+		c.JSON(http.StatusNotFound, Fail("未找到在线用户"))
+	default:
+		logger.Log.Error("rename user failed", "user_id", userID, "error", err)
+		c.JSON(http.StatusInternalServerError, Fail("修改昵称失败，请稍后重试"))
 	}
-	c.JSON(http.StatusOK, OK(msg))
 }
 
 func (h *Handler) UserRooms(c *gin.Context) {

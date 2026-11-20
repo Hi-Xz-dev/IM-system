@@ -139,59 +139,6 @@ func (s *Server) PrivateChat(sender *user.User, targetID int64, content string) 
 	}
 }
 
-// 用户改名业务
-func (s *Server) Rename(usr *user.User, newName string) {
-	s.mapLock.Lock()
-	if s.nameExistsUnsafe(newName) {
-		s.mapLock.Unlock()
-
-		_ = s.SendSystemMessage(
-			usr,
-			"用户名已存在，请重试",
-		)
-		return
-	}
-
-	profile, ok := s.Profiles[usr.ID]
-	if !ok {
-		s.mapLock.Unlock()
-		return
-	}
-
-	oldName := profile.Nickname
-
-	profile.Nickname = newName
-
-	s.mapLock.Unlock()
-
-	if err := s.BroadcastSystemMessage(
-		usr,
-		oldName+" 改名为 "+newName,
-	); err != nil {
-
-		logger.Log.Error(
-			"broadcast rename failed",
-			"error",
-			err,
-		)
-	}
-}
-
-// 检查重名
-func (s *Server) nameExistsUnsafe(name string) bool {
-
-	for _, profile := range s.Profiles {
-
-		if profile.Nickname == name {
-
-			return true
-
-		}
-	}
-
-	return false
-}
-
 // 返回在线用户切片
 func (s *Server) getOnlineSessionsUnsafe() []*user.User {
 
@@ -303,46 +250,6 @@ func (s *Server) GetOnlineUsers() []OnlineUser {
 	}
 
 	return users
-}
-
-// 用户改名
-func (s *Server) RenameH(
-	userID int64,
-	newName string,
-) (string, bool) {
-
-	s.mapLock.Lock()
-
-	users, ok := s.OnlineUsers[userID]
-	if !ok {
-		s.mapLock.Unlock()
-		return "未找到用户", false
-	}
-
-	profile, ok := s.Profiles[userID]
-	if !ok {
-		s.mapLock.Unlock()
-		return "未找到用户资料", false
-	}
-
-	if s.nameExistsUnsafe(newName) {
-		s.mapLock.Unlock()
-		return "用户名已存在", false
-	}
-
-	oldName := profile.Nickname
-
-	profile.Nickname = newName
-
-	s.mapLock.Unlock()
-
-	// 这里 users[0] 只是拿一个有效 session 用来广播
-	_ = s.BroadcastSystemMessage(
-		users[0],
-		oldName+" 改名为 "+newName,
-	)
-
-	return "修改用户名成功", true
 }
 
 // 用户位置

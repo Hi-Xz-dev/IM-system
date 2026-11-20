@@ -1,7 +1,6 @@
 package server
 
 import (
-	"IM-system/internal/auth"
 	"IM-system/internal/domain"
 	"IM-system/internal/message"
 	"IM-system/internal/model"
@@ -22,6 +21,11 @@ type RoomRepository interface {
 
 type MessagePublisher interface {
 	Publish(context.Context, domain.Message) error
+}
+
+type UserAccountService interface {
+	Authenticate(context.Context, string) (*model.User, error)
+	UpdateNickname(context.Context, int64, string) (string, error)
 }
 
 type Server struct {
@@ -50,7 +54,8 @@ type Server struct {
 	//等待任务完成的计数器
 	connectionWG sync.WaitGroup
 	//
-	authService *auth.Service
+	authService UserAccountService
+	renameMu    sync.Mutex
 	//房间信息持久
 	roomRepo RoomRepository
 	//个人资料持久
@@ -65,7 +70,7 @@ type Server struct {
 func NewServer(
 	ip string,
 	port int,
-	authService *auth.Service,
+	authService UserAccountService,
 	roomRepo RoomRepository,
 	messageService *message.MessageService,
 	messagePublisher MessagePublisher,

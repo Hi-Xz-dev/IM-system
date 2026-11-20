@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -49,10 +50,10 @@ func NewService(userRepo *repository.UserRepository, jwtService *JWTService) *Se
 		jwtService: jwtService,
 	}
 }
-//注册
+
+// 注册
 func (s *Service) Register(ctx context.Context, input RegisterInput) error {
 	input.Username = strings.TrimSpace(input.Username)
-	input.Nickname = strings.TrimSpace(input.Nickname)
 
 	if input.Username == "" {
 		return ErrInvalidUsername
@@ -62,8 +63,9 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) error {
 		return ErrInvalidPassword
 	}
 
-	if input.Nickname == "" {
-		return ErrInvalidNickname
+	nickname, err := normalizeNickname(input.Nickname)
+	if err != nil {
+		return err
 	}
 
 	passwordHash, err := HashPassword(input.Password)
@@ -74,7 +76,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) error {
 	user := &model.User{
 		Username:     input.Username,
 		PasswordHash: passwordHash,
-		Nickname:     input.Nickname,
+		Nickname:     nickname,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
@@ -88,7 +90,27 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) error {
 
 	return nil
 }
-//登录
+
+func normalizeNickname(nickname string) (string, error) {
+	nickname = strings.TrimSpace(nickname)
+	if nickname == "" || !utf8.ValidString(nickname) || utf8.RuneCountInString(nickname) > 64 {
+		return "", ErrInvalidNickname
+	}
+	return nickname, nil
+}
+
+func (s *Service) UpdateNickname(ctx context.Context, userID int64, nickname string) (string, error) {
+	nickname, err := normalizeNickname(nickname)
+	if err != nil {
+		return "", err
+	}
+	if err := s.userRepo.UpdateNickname(ctx, userID, nickname); err != nil {
+		return "", err
+	}
+	return nickname, nil
+}
+
+// 登录
 func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, error) {
 	input.Username = strings.TrimSpace(input.Username)
 
@@ -123,7 +145,8 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, er
 		Token:    token,
 	}, nil
 }
-//拿身份证验证身份
+
+// 拿身份证验证身份
 func (s *Service) Authenticate(ctx context.Context, token string) (*model.User, error) {
 
 	userID, err := s.jwtService.ParseToken(token)

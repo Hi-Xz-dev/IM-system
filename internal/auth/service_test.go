@@ -244,6 +244,16 @@ func TestLogin(t *testing.T) {
 		t.Fatal("username mismatch")
 	}
 
+	if nickname, err := service.UpdateNickname(ctx, result.UserID, "  Jerry  "); err != nil || nickname != "Jerry" {
+		t.Fatalf("update nickname = %q, %v", nickname, err)
+	}
+	relogged, err := service.Login(ctx, LoginInput{Username: username, Password: "123456"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if relogged.Nickname != "Jerry" {
+		t.Fatalf("expected persisted nickname Jerry, got %q", relogged.Nickname)
+	}
 }
 
 func TestLoginWrongPassword(t *testing.T) {
@@ -355,7 +365,7 @@ func TestAuthenticate(t *testing.T) {
 			Username: username,
 			Password: "123456",
 		},
-	)	
+	)
 
 	if err != nil {
 		t.Fatal(err)

@@ -16,6 +16,20 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	}
 }
 
+func (r *UserRepository) UpdateNickname(ctx context.Context, id int64, nickname string) error {
+	result, err := r.db.ExecContext(ctx, "UPDATE users SET nickname = ? WHERE id = ?", nickname, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil || rows != 0 {
+		return err
+	}
+	// MySQL 也会为已经是该昵称的用户返回 0。
+	var exists int
+	return r.db.QueryRowContext(ctx, "SELECT 1 FROM users WHERE id = ?", id).Scan(&exists)
+}
+
 // 注册时把用户写进数据库
 func (r *UserRepository) Create(ctx context.Context, user *model.User) error {
 	//执行 INSERT MySQL 自动生成 id

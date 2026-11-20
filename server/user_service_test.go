@@ -1,17 +1,38 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"testing"
 
+	"IM-system/internal/model"
 	"IM-system/room"
 	"IM-system/user"
 )
 
+type nicknameAccountService struct {
+	nickname string
+	err      error
+}
+
+func (s *nicknameAccountService) Authenticate(context.Context, string) (*model.User, error) {
+	return nil, errors.New("authentication unsupported")
+}
+
+func (s *nicknameAccountService) UpdateNickname(_ context.Context, _ int64, nickname string) (string, error) {
+	if s.err != nil {
+		return "", s.err
+	}
+	s.nickname = nickname
+	return nickname, nil
+}
+
 func TestRenameSync(t *testing.T) {
+	accounts := &nicknameAccountService{}
 	s := NewServer(
 		"127.0.0.1",
 		8080,
-		nil,
+		accounts,
 		nil,
 		nil,
 		testMessagePublisher{},
@@ -58,6 +79,13 @@ func TestRenameSync(t *testing.T) {
 		tcpUser,
 		"Jerry",
 	)
+	if accounts.nickname != "Jerry" {
+		t.Fatalf("expected persisted nickname Jerry, got %q", accounts.nickname)
+	}
+	accounts.err = errors.New("database unavailable")
+	if err := s.RenameH(context.Background(), tcpUser.ID, "Spike"); !errors.Is(err, accounts.err) {
+		t.Fatalf("expected database error, got %v", err)
+	}
 
 	// 1. 昵称唯一权威来源 Profiles 应该更新
 	profile, ok := s.Profiles[1]

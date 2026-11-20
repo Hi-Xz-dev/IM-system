@@ -230,15 +230,15 @@
 
 ## 10 昵称持久化与 Profile 生命周期
 
-**位置：** [user_service.go](../server/user_service.go) 的 `Rename`、`RenameH`、`Online`、`Offline`、`nameExistsUnsafe`。
+**位置：** [nickname.go](../server/nickname.go)、[user_service.go](../server/user_service.go)、[user_repository.go](../internal/repository/user_repository.go)。
 
-**现状：** 改名只更新内存 Profile；数据库昵称未更新，登录仍从数据库读取。最后一个连接离线后 Profile 未删除，长期运行时会保留曾登录用户资料，重名检查也会扫描这些资料。
+**现状：** 聊天命令和 HTTP 改名共用一条流程。更新 MySQL 成功后才更新同账号共享的在线 Profile，登录和重新认证从 MySQL 读取昵称。注册和改名共用昵称校验，均允许昵称重复，登录用户名继续由数据库保证唯一。最后一个连接离线后仍保留 Profile，清理策略待处理。
 
 **检查步骤：** 改名后调用登录、建立新连接并重启服务，对比昵称；大量不同账号登录退出后检查 Profile 数量；检查重名规则是否与注册流程一致。
 
-- [ ] 昵称的权威来源明确，登录、在线展示和重启结果一致。
+- [x] 昵称写入 MySQL 后同步在线 Profile，登录和重新认证读取同一份持久化数据。
 - [ ] Profile 有明确的保留、清理或缓存淘汰策略。
-- [ ] 昵称是否允许重复的规则在注册和改名中一致。
+- [x] 注册和改名均允许昵称重复。
 
 ## 11 连接资源边界不足
 

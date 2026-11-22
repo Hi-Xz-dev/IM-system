@@ -3,28 +3,33 @@ package server
 import (
 	"IM-system/internal/connection"
 	"IM-system/user"
-	"bufio"
 	"context"
 	"net"
+	"time"
 )
 
 // handler
 func (s *Server) Handler(conn net.Conn) {
 	defer conn.Close()
+	tcpConn := connection.NewTCPConnection(conn)
+	if err := conn.SetReadDeadline(time.Now().Add(connection.AuthReadTimeout)); err != nil {
+		return
+	}
 
-	scanner := bufio.NewScanner(conn)
-	userID, nickname, err := s.authenticateConnection(scanner)
+	reader := connection.NewTCPReader(conn)
+	userID, nickname, err := s.authenticateConnection(reader)
 
 	if err != nil {
 		if s.isShuttingDown() {
 			return
 		}
-		conn.Write([]byte("[系统] 认证失败\n"))
-		conn.Close()
+		_ = tcpConn.Write([]byte("[系统] 认证失败\n"))
+		return
+	}
+	if err := conn.SetReadDeadline(time.Time{}); err != nil {
 		return
 	}
 	addr := conn.RemoteAddr().String()
-	tcpConn := connection.NewTCPConnection(conn)
 	//创建user
 	usr := user.NewUser(
 		tcpConn,
@@ -55,7 +60,6 @@ func (s *Server) Handler(conn net.Conn) {
 	//认证成功
 	tcpConn.Write([]byte("[系统] 认证成功\n"))
 
-	reader := connection.NewTCPReader(conn)
 	//启动读协程 负责读客户端发来的消息
 	s.ServerReader(reader, usr)
 

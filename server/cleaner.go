@@ -33,6 +33,9 @@ func (s *Server) inactiveUsers(now time.Time) []*user.User {
 	var users []*user.User
 	for _, sessions := range s.OnlineUsers {
 		for _, u := range sessions {
+			if u.UsesWebSocket() {
+				continue
+			}
 			active := u.LastActiveTime()
 			if active != 0 && now.Sub(time.Unix(active, 0)) > 10*time.Minute {
 				users = append(users, u)

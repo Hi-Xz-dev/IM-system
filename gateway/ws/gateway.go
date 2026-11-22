@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -51,13 +52,16 @@ func (g *Gateway) Handler(c *gin.Context) {
 	}
 	defer finish()
 
+	conn.SetReadLimit(connection.MaxMessageBytes)
+	if err := conn.SetReadDeadline(time.Now().Add(connection.AuthReadTimeout)); err != nil {
+		return
+	}
 	userID, nickname, err := g.Auth(conn)
 	wsConn := connection.NewWSConnection(conn)
 	if err != nil {
 		_ = wsConn.Write([]byte("[系统]认证失败"))
 		return
 	}
-
 	usr :=
 		user.NewUser(
 			wsConn,
@@ -71,6 +75,12 @@ func (g *Gateway) Handler(c *gin.Context) {
 		return
 	}
 
+	stopHeartbeat, err := startHeartbeat(conn, pingInterval, pongTimeout)
+	if err != nil {
+		g.server.Offline(usr)
+		return
+	}
+
 	writerDone := make(chan struct{})
 	go func() {
 		defer close(writerDone)
@@ -79,6 +89,7 @@ func (g *Gateway) Handler(c *gin.Context) {
 	defer func() {
 		g.server.Offline(usr)
 		usr.Close()
+		stopHeartbeat()
 		<-writerDone
 	}()
 

@@ -53,6 +53,13 @@ func NewUser(conn connection.Connection, id int64, nickname string, addr string)
 	return u
 }
 
+// UsesWebSocket indicates that the gateway manages
+//  connection liveness with Ping/Pong.
+func (u *User) UsesWebSocket() bool {
+	_, ok := u.conn.(*connection.WSConnection)
+	return ok
+}
+
 func (u *User) Close() {
 	u.sendMu.Lock()
 	if u.closed {

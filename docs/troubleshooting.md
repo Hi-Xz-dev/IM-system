@@ -271,13 +271,13 @@
 
 **位置：** [message.go](../internal/domain/message.go) 的 `NewMessage`；[message_service.go](../internal/message/message_service.go) 的 `toDomainMessages`；[message_repository.go](../internal/repository/message_repository.go)；[003_create_messages.sql](../migrations/003_create_messages.sql)。
 
-**现状：** 实时消息 ID 未生成，历史转换未携带数据库 ID；历史固定取 20 条，没有继续翻页游标。查询只按 `created_at` 排序，表中 DATETIME 未指定小数秒精度，同时间消息没有唯一排序依据。认证等部分输出为纯文本，历史命令又把结构化消息格式化为系统文本。
+**现状：** 实时消息与结构化历史使用同一个 `message_id`。两类历史查询均按 `created_at DESC, id DESC` 排序，同一秒的记录按数据库自增主键决定顺序。历史依然固定取 20 条。认证等部分输出为纯文本，聊天历史命令仍把记录格式化为系统文本。
 
 **检查步骤：** 快速发送超过 20 条带编号消息，比对实时与历史 ID、排序和可继续读取性；用统一客户端解析认证、聊天、错误、历史响应。
 
 **修复方向：** 先补有效 ID、稳定排序与游标设计；约定消息与错误的协议结构。客户端 ACK、去重和断线补拉作为后续能力，需要先定义交付语义再实现。
 
-- [ ] 实时与历史消息可用稳定标识关联，排序不依赖不唯一的时间值。
+- [x] 结构化历史与实时消息可用相同的消息 ID 关联，查询对同一秒的记录有稳定顺序。
 - [ ] 若承诺完整历史，超过 20 条后可继续分页，连续翻页不重复、不遗漏。
 - [ ] 客户端能明确区分聊天消息、系统通知、响应和错误。
 

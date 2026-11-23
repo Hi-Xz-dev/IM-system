@@ -85,6 +85,7 @@ func (m *MessageRepository) FindByRoomID(
 		ctx,
 		`SELECT
 			id,
+			message_id,
 			type,
 			from_id,
 			from_nickname,
@@ -95,7 +96,7 @@ func (m *MessageRepository) FindByRoomID(
 			created_at
 		FROM messages
 		WHERE room_id = ?
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id DESC
 		LIMIT ?`,
 		roomID,
 		limit,
@@ -115,6 +116,7 @@ func (m *MessageRepository) FindByRoomID(
 
 		if err := rows.Scan(
 			&msg.ID,
+			&msg.MessageID,
 			&msg.Type,
 			&msg.FromID,
 			&msg.FromNickname,
@@ -154,6 +156,7 @@ func (r *MessageRepository) FindPrivateMessages(
 		ctx,
 		`SELECT
 			id,
+			message_id,
 			type,
 			from_id,
 			from_nickname,
@@ -169,7 +172,7 @@ func (r *MessageRepository) FindPrivateMessages(
 			OR
 			(from_id = ? AND to_id = ?)
 		  )
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id DESC
 		LIMIT ?`,
 		userID1,
 		userID2,
@@ -192,6 +195,7 @@ func (r *MessageRepository) FindPrivateMessages(
 
 		if err := rows.Scan(
 			&msg.ID,
+			&msg.MessageID,
 			&msg.Type,
 			&msg.FromID,
 			&msg.FromNickname,

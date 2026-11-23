@@ -145,7 +145,7 @@ func TestFindByRoomID(t *testing.T) {
 		RoomID:       ptrInt64(roomID1),
 		RoomName:     &roomName1,
 		Content:      content2,
-		CreatedAt:    time.Now().Add(time.Second),
+		CreatedAt:    msg1.CreatedAt,
 	}
 
 	// roomID=2，用来验证不会被查出来
@@ -206,8 +206,10 @@ func TestFindByRoomID(t *testing.T) {
 		}
 	}
 
-	// 8. 因为 SQL 是 ORDER BY created_at DESC，从大到小(时间)
-	// 第二条消息应该排在前面
+	// 同一时间内，后插入且数据库主键更大的消息排在前面。
+	if messages[0].MessageID != msg2.MessageID || messages[1].MessageID != msg1.MessageID {
+		t.Fatalf("room history returned wrong message IDs or order: %+v", messages)
+	}
 	if messages[0].Content != content2 {
 		t.Fatalf(
 			"expected first message %s, got %s",
@@ -297,7 +299,7 @@ func TestFindPrivateMessages(t *testing.T) {
 		FromNickname: "Bob",
 		ToID:         &toAlice,
 		Content:      content2,
-		CreatedAt:    time.Now().Add(time.Second),
+		CreatedAt:    msg1.CreatedAt,
 	}
 
 	// 4. Alice -> 用户3，作为干扰数据
@@ -344,7 +346,10 @@ func TestFindPrivateMessages(t *testing.T) {
 		)
 	}
 
-	// 7. 最新的 Bob -> Alice 应该在前面
+	// 两条消息时间相同，后插入的 Bob -> Alice 应该在前面。
+	if messages[0].MessageID != msg2.MessageID || messages[1].MessageID != msg1.MessageID {
+		t.Fatalf("private history returned wrong message IDs or order: %+v", messages)
+	}
 	if messages[0].Content != content2 {
 		t.Fatalf(
 			"expected first message %s, got %s",

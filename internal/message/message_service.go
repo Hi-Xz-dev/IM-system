@@ -104,6 +104,7 @@ func toDomainMessages(
 
 	for _, dbMsg := range dbMessages {
 		msg := domain.Message{
+			ID:           dbMsg.MessageID,
 			Type:         domain.MessageType(dbMsg.Type),
 			From:         dbMsg.FromID,
 			FromNickname: dbMsg.FromNickname,

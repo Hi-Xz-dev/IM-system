@@ -62,6 +62,21 @@ func TestMessageServicePersistRoom(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	history, err := messageService.GetRoomHistory(context.Background(), msg.RoomID, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, entry := range history {
+		if entry.ID == msg.ID && entry.Content == msg.Content {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("history did not preserve live message ID %q", msg.ID)
+	}
+
 	// 2. 从数据库查回来
 	var (
 		id           int64

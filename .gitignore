@@ -29,3 +29,6 @@ vendor/
 .env
 .env.*
 !.env.example
+
+# Private troubleshooting notes
+/docs/troubleshooting.md

@@ -31,7 +31,17 @@ docs/            HTTP 接口和通信命令说明
 
 ## Docker 一键启动
 
-安装 Git 和 Docker Desktop（或 Docker Engine + Compose），然后在终端运行这一行：
+### 1. 安装 Git 和 Docker
+
+macOS 用户可通过 [Homebrew](https://brew.sh/) 安装。Docker Desktop 自带 Compose。
+
+```bash
+brew install git && brew install --cask docker-desktop
+```
+
+安装后打开 Docker Desktop，完成首次设置。
+
+### 2. 下载并启动 IM System
 
 ```bash
 git clone https://github.com/Hi-Xz-dev/IM-system.git && ./IM-system/start.sh
@@ -113,7 +123,7 @@ RABBITMQ_TEST_URL='amqp://guest:guest@127.0.0.1:5672/' go test ./server -run '^T
 
 认证和消息仓储测试需要本地 MySQL，使用 `root` 空密码连接 `127.0.0.1:3306/im_system`，并需要提前建表；这些测试会写入并清理测试数据。
 
-接口路径和 TCP / WebSocket 命令见 [接口与协议说明](docs/api.md)。当前问题、复现步骤和验收标准见 [问题排查清单](docs/troubleshooting.md)。
+接口路径和 TCP / WebSocket 命令见 [接口与协议说明](docs/api.md)。
 
 ## 许可证
 

@@ -3,10 +3,10 @@ package httpserver
 import (
 	"IM-system/gateway/ws"
 	"IM-system/internal/auth"
+	"IM-system/internal/message"
 	"IM-system/internal/middleware"
 	"IM-system/internal/repository"
 	"IM-system/server"
-	"IM-system/internal/message"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,14 +35,20 @@ func RegisterRoutes(
 		authMiddleware.Handler(),
 	)
 	api.GET("/rooms", h.Rooms)
-	api.GET("/users/:user/rooms", h.UserRooms)
+	api.GET("/me/rooms", h.UserRooms)
 	api.GET("/online-users", h.OnlineUsers)
 	api.GET("/rooms/:room/history", h.RoomHistory)
 	api.GET("/private/:user/history", h.PrivateHistory)
 
 	api.POST("/rooms", h.CreateRoom)
-	api.PUT("/user/:user", h.Rename)
+	api.PUT("/me/nickname", h.Rename)
 	api.GET("/rooms/:room/members", h.Members)
+	api.POST("/rooms/:room/membership", h.Join)
+	api.DELETE("/rooms/:room/membership", h.Leave)
+
+	// 兼容旧客户端，操作对象仍由 JWT 决定。
+	api.GET("/users/:user/rooms", h.UserRooms)
+	api.PUT("/user/:user", h.Rename)
 	api.POST("/rooms/:room/members/:user", h.Join)
 	api.DELETE("/rooms/:room/members/:user", h.Leave)
 

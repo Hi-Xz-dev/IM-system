@@ -174,7 +174,7 @@ func writeRoomAccessError(c *gin.Context, err error, fallback string) bool {
 
 // 加入房间
 func (h *Handler) Join(c *gin.Context) {
-	roomName, ok := getRoomParam(c)
+	roomID, ok := getRoomParam(c)
 	if !ok {
 		return
 	}
@@ -186,7 +186,7 @@ func (h *Handler) Join(c *gin.Context) {
 		return
 	}
 
-	msg, ok := h.server.JoinRoomH(userID, roomName)
+	msg, ok := h.server.JoinRoomH(userID, roomID)
 	if !ok {
 		c.JSON(http.StatusNotFound, Fail(msg))
 		return
@@ -196,7 +196,7 @@ func (h *Handler) Join(c *gin.Context) {
 
 // 离开房间
 func (h *Handler) Leave(c *gin.Context) {
-	roomName, ok := getRoomParam(c)
+	roomID, ok := getRoomParam(c)
 	if !ok {
 		return
 	}
@@ -208,7 +208,7 @@ func (h *Handler) Leave(c *gin.Context) {
 		return
 	}
 
-	msg, ok := h.server.LeaveRoomH(userID, roomName)
+	msg, ok := h.server.LeaveRoomH(userID, roomID)
 	if !ok {
 		c.JSON(http.StatusNotFound, Fail(msg))
 		return

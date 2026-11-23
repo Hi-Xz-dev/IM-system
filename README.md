@@ -2,6 +2,8 @@
 
 基于 Go 的即时通信项目，支持 TCP、WebSocket 和 HTTP API，附带 Vue 3 网页聊天界面。
 
+作者 [Hifang-xz](https://github.com/Hi-Xz-dev)
+
 项目定位为在线聊天室：任意端加入或主动退房，同步同账号所有在线端；新端登录继承其他在线端的房间。单端断线不影响其他端，所有端离线后不保留成员身份，再登录需要重新加入。房间无人时保留，服务器启动时从数据库加载房间资料；暂不设置房主，也不保存永久成员关系。
 
 每个连接使用容量 100 的发送队列，满时拒绝本次投递；持续拥塞 5 秒未恢复则关闭该连接，TCP/WS 网络写入超时均为 5 秒。入队成功不代表客户端已经收到，当前不提供自动重试或断线补拉保证。
@@ -37,13 +39,21 @@ git clone https://github.com/Hi-Xz-dev/IM-system.git && ./IM-system/start.sh
 
 启动成功后，打开 [聊天页面](http://127.0.0.1:8081/web/)。Go 服务、MySQL 和 RabbitMQ 由 Docker Compose 启动。
 
+在项目目录运行 `./start.sh --preview` 可以预览终端启动画面。
+
 脚本首次运行自动生成 `.env`，后续启动沿用同一份密钥和密码。在已下载的 `IM-system` 目录中运行 `./start.sh` 即可再次启动。Docker Desktop 关闭时会尝试自动启动它。使用独立 Docker Engine 时，需确保当前用户能连接引擎。
 
 首次运行会构建镜像，之后沿用本地镜像。修改代码后，运行 `./start.sh --build` 更新镜像并启动。
 
 Go 程序与网页资源打入同一镜像，MySQL 和 RabbitMQ 各自运行在独立容器。HTTP/WebSocket 使用本机 8081，原始 TCP 使用本机 8080；MySQL 和 RabbitMQ 通过 Compose 内部网络访问。
 
-MySQL 的数据卷首次初始化时会自动执行 `migrations/` 下的 SQL。两项依赖通过健康检查后，Compose 才启动 IM 服务。运行 `docker compose logs -f im` 查看日志，运行 `docker compose down` 停止容器并保留数据库和队列数据。[Docker Compose 启动顺序](https://docs.docker.com/compose/how-tos/startup-order/)
+MySQL 的数据卷首次初始化时会自动执行 `migrations/` 下的 SQL。两项依赖通过健康检查后，Compose 才启动 IM 服务。运行 `docker compose logs -f im` 查看日志。[Docker Compose 启动顺序](https://docs.docker.com/compose/how-tos/startup-order/)
+
+在启动时使用的项目目录中运行以下命令，停止服务并保留数据库和队列数据。如果启动时设置了 `COMPOSE_PROJECT_NAME`，关闭时也要使用同一个名字。
+
+```bash
+docker compose down
+```
 
 单独构建 Go 服务镜像可执行 `docker build -t im-system:local .`。需要手动配置时可参考 `.env.example`。
 

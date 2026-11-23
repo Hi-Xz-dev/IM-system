@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"IM-system/internal/domain"
+	"IM-system/internal/message"
+	"IM-system/internal/model"
 	"IM-system/room"
 	"IM-system/user"
 )
@@ -49,19 +50,19 @@ func (s *Server) checkRoomMembership(userID, roomID int64) error {
 	return err
 }
 
-func (s *Server) GetRoomHistoryForUser(ctx context.Context, userID, roomID int64) ([]domain.Message, error) {
+func (s *Server) GetRoomHistoryForUser(ctx context.Context, userID, roomID int64, before *model.HistoryPosition) (message.HistoryPage, error) {
 	if err := s.checkRoomMembership(userID, roomID); err != nil {
-		return nil, err
+		return message.HistoryPage{}, err
 	}
-	messages, err := s.messageService.GetRoomHistory(ctx, roomID, 20)
+	page, err := s.messageService.GetRoomHistory(ctx, roomID, before)
 	if err != nil {
-		return nil, err
+		return message.HistoryPage{}, err
 	}
 	// The caller may have left while the database query was running.
 	if err := s.checkRoomMembership(userID, roomID); err != nil {
-		return nil, err
+		return message.HistoryPage{}, err
 	}
-	return messages, nil
+	return page, nil
 }
 
 func (s *Server) sendRoomAccessError(usr *user.User, err error) error {

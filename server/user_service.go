@@ -214,11 +214,11 @@ func (s *Server) GetNickname(userID int64) (string, bool) {
 
 // 用户历史信息
 func (s *Server) PrivateHistory(usr *user.User, targetID int64) {
-	messages, err := s.messageService.GetPrivateHistory(
+	page, err := s.messageService.GetPrivateHistory(
 		context.Background(),
 		usr.ID,
 		targetID,
-		20,
+		nil,
 	)
 
 	if err != nil {
@@ -236,8 +236,8 @@ func (s *Server) PrivateHistory(usr *user.User, targetID int64) {
 		return
 	}
 
-	for i := len(messages) - 1; i >= 0; i-- {
-		msg := messages[i]
+	for i := len(page.Messages) - 1; i >= 0; i-- {
+		msg := page.Messages[i]
 
 		text := fmt.Sprintf(
 			"[%s] %s: %s",

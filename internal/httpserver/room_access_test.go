@@ -39,6 +39,7 @@ func TestRoomAccessFollowsAccountMembership(t *testing.T) {
 	s.Online(second)
 
 	checkDenied()
+	check("/rooms/1/history?before=invalid!", http.StatusBadRequest)
 	check("/rooms/99/history", http.StatusNotFound)
 	if msg, ok := s.JoinRoomH(7, 1); !ok {
 		t.Fatal(msg)

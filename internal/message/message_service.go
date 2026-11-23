@@ -133,43 +133,23 @@ func toDomainMessages(
 func (s *MessageService) GetRoomHistory(
 	ctx context.Context,
 	roomID int64,
-	limit int,
-) ([]domain.Message, error) {
-
-	dbMessages, err := s.messageRepo.FindByRoomID(
-		ctx,
-		roomID,
-		limit,
-	)
+	before *model.HistoryPosition,
+) (HistoryPage, error) {
+	dbMessages, err := s.messageRepo.FindByRoomID(ctx, roomID, historyPageSize+1, before)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"get room history: %w",
-			err,
-		)
+		return HistoryPage{}, fmt.Errorf("get room history: %w", err)
 	}
-
-	return toDomainMessages(dbMessages), nil
+	return newHistoryPage(dbMessages), nil
 }
 
 func (s *MessageService) GetPrivateHistory(
 	ctx context.Context,
-	userID1 int64,
-	userID2 int64,
-	limit int,
-) ([]domain.Message, error) {
-
-	dbMessages, err := s.messageRepo.FindPrivateMessages(
-		ctx,
-		userID1,
-		userID2,
-		limit,
-	)
+	userID1, userID2 int64,
+	before *model.HistoryPosition,
+) (HistoryPage, error) {
+	dbMessages, err := s.messageRepo.FindPrivateMessages(ctx, userID1, userID2, historyPageSize+1, before)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"get private history: %w",
-			err,
-		)
+		return HistoryPage{}, fmt.Errorf("get private history: %w", err)
 	}
-
-	return toDomainMessages(dbMessages), nil
+	return newHistoryPage(dbMessages), nil
 }

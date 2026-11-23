@@ -16,3 +16,8 @@ type Message struct {
 	CreatedAt    time.Time
 	MessageID    string
 }
+
+type HistoryPosition struct {
+	CreatedAt time.Time
+	ID        int64
+}

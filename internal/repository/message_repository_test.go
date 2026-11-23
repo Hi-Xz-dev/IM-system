@@ -178,6 +178,7 @@ func TestFindByRoomID(t *testing.T) {
 		ctx,
 		roomID1,
 		10,
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -333,6 +334,7 @@ func TestFindPrivateMessages(t *testing.T) {
 		1,
 		2,
 		10,
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)

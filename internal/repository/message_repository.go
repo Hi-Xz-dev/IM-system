@@ -80,154 +80,63 @@ func (m *MessageRepository) FindByRoomID(
 	ctx context.Context,
 	roomID int64,
 	limit int,
+	before *model.HistoryPosition,
 ) ([]model.Message, error) {
-	rows, err := m.db.QueryContext(
-		ctx,
-		`SELECT
-			id,
-			message_id,
-			type,
-			from_id,
-			from_nickname,
-			to_id,
-			room_id,
-			room_name,
-			content,
-			created_at
-		FROM messages
-		WHERE room_id = ?
-		ORDER BY created_at DESC, id DESC
-		LIMIT ?`,
-		roomID,
-		limit,
-	)
+	return m.findHistory(ctx, "room_id = ?", []any{roomID}, limit, before)
+}
+
+func (m *MessageRepository) FindPrivateMessages(
+	ctx context.Context,
+	userID1, userID2 int64,
+	limit int,
+	before *model.HistoryPosition,
+) ([]model.Message, error) {
+	return m.findHistory(ctx, `type = 'private' AND (
+		(from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)
+	)`, []any{userID1, userID2, userID2, userID1}, limit, before)
+}
+
+func (m *MessageRepository) findHistory(
+	ctx context.Context,
+	filter string,
+	args []any,
+	limit int,
+	before *model.HistoryPosition,
+) ([]model.Message, error) {
+	// filter comes from the two fixed queries above. All values use placeholders.
+	query := `SELECT id, message_id, type, from_id, from_nickname,
+			to_id, room_id, room_name, content, created_at
+		FROM messages WHERE ` + filter
+	if before != nil {
+		query += " AND (created_at < ? OR (created_at = ? AND id < ?))"
+		args = append(args, before.CreatedAt, before.CreatedAt, before.ID)
+	}
+	query += " ORDER BY created_at DESC, id DESC LIMIT ?"
+	args = append(args, limit)
+
+	rows, err := m.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"query room messages: %w",
-			err,
-		)
+		return nil, fmt.Errorf("query message history: %w", err)
 	}
 	defer rows.Close()
 
 	messages := make([]model.Message, 0)
-
 	for rows.Next() {
 		var msg model.Message
-
 		if err := rows.Scan(
-			&msg.ID,
-			&msg.MessageID,
-			&msg.Type,
-			&msg.FromID,
-			&msg.FromNickname,
-			&msg.ToID,
-			&msg.RoomID,
-			&msg.RoomName,
-			&msg.Content,
-			&msg.CreatedAt,
+			&msg.ID, &msg.MessageID, &msg.Type, &msg.FromID, &msg.FromNickname,
+			&msg.ToID, &msg.RoomID, &msg.RoomName, &msg.Content, &msg.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf(
-				"scan room message: %w",
-				err,
-			)
+			return nil, fmt.Errorf("scan history message: %w", err)
 		}
-
 		messages = append(messages, msg)
 	}
-
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf(
-			"iterate room messages: %w",
-			err,
-		)
+		return nil, fmt.Errorf("iterate message history: %w", err)
 	}
-
 	return messages, nil
 }
 
-func (r *MessageRepository) FindPrivateMessages(
-	ctx context.Context,
-	userID1 int64,
-	userID2 int64,
-	limit int,
-) ([]model.Message, error) {
-
-	rows, err := r.db.QueryContext(
-		ctx,
-		`SELECT
-			id,
-			message_id,
-			type,
-			from_id,
-			from_nickname,
-			to_id,
-			room_id,
-			room_name,
-			content,
-			created_at
-		FROM messages
-		WHERE type = 'private'
-		  AND (
-			(from_id = ? AND to_id = ?)
-			OR
-			(from_id = ? AND to_id = ?)
-		  )
-		ORDER BY created_at DESC, id DESC
-		LIMIT ?`,
-		userID1,
-		userID2,
-		userID2,
-		userID1,
-		limit,
-	)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"query private messages: %w",
-			err,
-		)
-	}
-	defer rows.Close()
-
-	messages := make([]model.Message, 0)
-
-	for rows.Next() {
-		var msg model.Message
-
-		if err := rows.Scan(
-			&msg.ID,
-			&msg.MessageID,
-			&msg.Type,
-			&msg.FromID,
-			&msg.FromNickname,
-			&msg.ToID,
-			&msg.RoomID,
-			&msg.RoomName,
-			&msg.Content,
-			&msg.CreatedAt,
-		); err != nil {
-			return nil, fmt.Errorf(
-				"scan private message: %w",
-				err,
-			)
-		}
-
-		messages = append(
-			messages,
-			msg,
-		)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf(
-			"iterate private messages: %w",
-			err,
-		)
-	}
-
-	return messages, nil
-}
-
-// 遇到重复时，根据 message_id 查询已有消息
 func (m *MessageRepository) FindByMessageID(
 	ctx context.Context,
 	messageID string,

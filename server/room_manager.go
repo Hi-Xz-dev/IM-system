@@ -50,7 +50,7 @@ func (s *Server) RoomHistory(
 	usr *user.User,
 	roomID int64,
 ) {
-	messages, err := s.GetRoomHistoryForUser(context.Background(), usr.ID, roomID)
+	page, err := s.GetRoomHistoryForUser(context.Background(), usr.ID, roomID, nil)
 	if err != nil {
 		if err == ErrRoomNotFound || err == ErrNotRoomMember {
 			_ = s.sendRoomAccessError(usr, err)
@@ -70,8 +70,8 @@ func (s *Server) RoomHistory(
 		return
 	}
 
-	for i := len(messages) - 1; i >= 0; i-- {
-		msg := messages[i]
+	for i := len(page.Messages) - 1; i >= 0; i-- {
+		msg := page.Messages[i]
 
 		text := fmt.Sprintf(
 			"[%s] %s: %s",

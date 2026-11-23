@@ -4,14 +4,90 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
 	"IM-system/internal/domain"
+	"IM-system/internal/model"
 	"IM-system/internal/repository"
 
 	_ "github.com/go-sql-driver/mysql"
 )
+
+func TestHistoryPagesWithSameTimestamp(t *testing.T) {
+	db, err := sql.Open("mysql", "root@tcp(127.0.0.1:3306)/im_system?parseTime=true")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	service := NewMessageService(repository.NewMessageRepository(db))
+	ctx := context.Background()
+	for _, kind := range []domain.MessageType{domain.MessageRoom, domain.MessagePrivate} {
+		t.Run(string(kind), func(t *testing.T) {
+			// Use IDs separate from the other fixtures and clean up by message ID.
+			sender := time.Now().UnixNano()
+			recipient := sender + 1
+			when := time.Now().UTC().Truncate(time.Second)
+			insert := func(i int) string {
+				t.Helper()
+				msg := domain.NewMessage(kind, sender, "sender", fmt.Sprint(i))
+				if kind == domain.MessageRoom {
+					msg.RoomID = recipient
+				} else {
+					msg.To = recipient
+				}
+				msg.Time = when
+				if err := service.Persist(ctx, msg); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					if _, err := db.Exec("DELETE FROM messages WHERE message_id = ?", msg.ID); err != nil {
+						t.Error(err)
+					}
+				})
+				return msg.ID
+			}
+			load := func(before *model.HistoryPosition) HistoryPage {
+				t.Helper()
+				var page HistoryPage
+				var err error
+				if kind == domain.MessageRoom {
+					page, err = service.GetRoomHistory(ctx, recipient, before)
+				} else {
+					page, err = service.GetPrivateHistory(ctx, sender, recipient, before)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				return page
+			}
+			const total = historyPageSize + 2
+			ids := make([]string, total)
+			for i := range ids {
+				ids[i] = insert(i)
+			}
+			first := load(nil)
+			if len(first.Messages) != historyPageSize || first.NextCursor == "" {
+				t.Fatalf("expected a full first page and cursor, got %d messages", len(first.Messages))
+			}
+			before, err := ParseHistoryCursor(first.NextCursor)
+			if err != nil {
+				t.Fatal(err)
+			}
+			insert(total) // A new message must not shift the second page.
+			second := load(before)
+			if len(second.Messages) != 2 || second.NextCursor != "" {
+				t.Fatalf("expected two remaining messages and no cursor, got %d messages", len(second.Messages))
+			}
+			for i, msg := range append(first.Messages, second.Messages...) {
+				if msg.ID != ids[total-1-i] {
+					t.Fatalf("history message %d had wrong ID or order", i)
+				}
+			}
+		})
+	}
+}
 
 func TestMessageServicePersistRoom(t *testing.T) {
 	db, err := sql.Open(
@@ -62,12 +138,12 @@ func TestMessageServicePersistRoom(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	history, err := messageService.GetRoomHistory(context.Background(), msg.RoomID, 20)
+	history, err := messageService.GetRoomHistory(context.Background(), msg.RoomID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	found := false
-	for _, entry := range history {
+	for _, entry := range history.Messages {
 		if entry.ID == msg.ID && entry.Content == msg.Content {
 			found = true
 			break

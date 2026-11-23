@@ -66,17 +66,23 @@ func (h *Handler) RoomHistory(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, Fail("not login"))
 		return
 	}
-	messages, err := h.server.GetRoomHistoryForUser(
+	before, err := message.ParseHistoryCursor(c.Query("before"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Fail(err.Error()))
+		return
+	}
+	page, err := h.server.GetRoomHistoryForUser(
 		c.Request.Context(),
 		userID,
 		roomID,
+		before,
 	)
 
 	if writeRoomAccessError(c, err, "get room history failed") {
 		return
 	}
 
-	c.JSON(http.StatusOK, OK(messages))
+	writeHistoryPage(c, page)
 }
 
 // 获取用户历史信息
@@ -104,11 +110,16 @@ func (h *Handler) PrivateHistory(c *gin.Context) {
 		return
 	}
 
-	messages, err := h.messageService.GetPrivateHistory(
+	before, err := message.ParseHistoryCursor(c.Query("before"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Fail(err.Error()))
+		return
+	}
+	page, err := h.messageService.GetPrivateHistory(
 		c.Request.Context(),
 		userID,
 		targetID,
-		20,
+		before,
 	)
 
 	if err != nil {
@@ -119,7 +130,14 @@ func (h *Handler) PrivateHistory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, OK(messages))
+	writeHistoryPage(c, page)
+}
+
+func writeHistoryPage(c *gin.Context, page message.HistoryPage) {
+	if page.NextCursor != "" {
+		c.Header("X-Next-Cursor", page.NextCursor)
+	}
+	c.JSON(http.StatusOK, OK(page.Messages))
 }
 
 // 当前成员

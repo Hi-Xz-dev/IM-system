@@ -98,26 +98,17 @@ func (s *Server) handlerRename(usr *user.User, args []string) {
 
 func (s *Server) handlerPrivateHistory(usr *user.User, args []string) {
 	if len(args) != 1 {
-		_ = s.SendSystemMessage(
-			usr,
-			"用法: history-private|用户ID",
-		)
+		s.sendCommandError(usr, domain.CmdPrivateHistory, "invalid_arguments", "用法: history-private|用户ID")
 		return
 	}
 
 	targetID, err := protocol.ParseID(args[0])
-	if err != nil {
-		_ = s.SendSystemMessage(
-			usr,
-			"用户ID错误",
-		)
+	if err != nil || targetID <= 0 {
+		s.sendCommandError(usr, domain.CmdPrivateHistory, "invalid_arguments", "用户ID错误")
 		return
 	}
 
-	s.PrivateHistory(
-		usr,
-		targetID,
-	)	
+	s.PrivateHistory(usr, targetID)
 }
 
 func (s *Server) handlerPrivateChat(usr *user.User, args []string) {
@@ -140,7 +131,7 @@ func (s *Server) handlerCreate(usr *user.User, args []string) {
 	}
 
 	roomID, err := s.CreateRoom(usr, args[0])
-	
+
 	if err != nil {
 
 		if errors.Is(err, repository.ErrRoomAlreadyExists) {
@@ -168,7 +159,6 @@ func (s *Server) handlerCreate(usr *user.User, args []string) {
 		roomID,
 		usr,
 		"创建房间成功",
-
 	)
 }
 
@@ -177,28 +167,18 @@ func (s *Server) handlerRoomHistory(
 	args []string,
 ) {
 	if len(args) != 1 {
-		_ = s.SendSystemMessage(
-			usr,
-			"用法: history-room|房间ID",
-		)
+		s.sendCommandError(usr, domain.CmdRoomHistory, "invalid_arguments", "用法: history-room|房间ID")
 		return
 	}
 
 	roomID, err := protocol.ParseID(args[0])
-	if err != nil {
-		_ = s.SendSystemMessage(
-			usr, 
-			"房间ID错误",
-		)
+	if err != nil || roomID <= 0 {
+		s.sendCommandError(usr, domain.CmdRoomHistory, "invalid_arguments", "房间ID错误")
 		return
 	}
 
-	s.RoomHistory(
-		usr,
-		roomID,
-	)
+	s.RoomHistory(usr, roomID)
 }
-
 
 func (s *Server) handlerJoin(usr *user.User, args []string) {
 	if len(args) != 1 {

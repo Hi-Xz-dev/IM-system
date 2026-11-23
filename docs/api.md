@@ -81,4 +81,20 @@ TCP 连接地址为 `127.0.0.1:8080`，每条命令以换行结束；WebSocket �
 
 认证提示等部分系统输出仍为纯文本，客户端需要兼容处理。
 
+成功执行 `history-room` 或 `history-private` 会收到一条 JSON 响应，外层 `type` 为 `history`。房间历史带 `room_id`，私聊历史带 `peer_id`。例如房间历史为空时返回：
+
+```json
+{"type":"history","room_id":1,"messages":[]}
+```
+
+`messages` 包含最近最多 20 条消息，按从旧到新排列，每条保留原始消息 ID、发送者、类型和时间。TCP 客户端需要能读入包含整页历史的一行 JSON。
+
+历史命令失败时返回 `type: "error"`。客户端可以用 `command` 确定失败的命令，用 `code` 判断原因，并把 `message` 显示给用户。
+
+```json
+{"type":"error","command":"history-room","code":"not_room_member","message":"当前未加入房间"}
+```
+
+错误码包括 `invalid_arguments`（参数无效）、`room_not_found`（房间不存在）、`not_room_member`（未入房）和 `history_query_failed`（查询失败）。
+
 [返回 README](../README.md)

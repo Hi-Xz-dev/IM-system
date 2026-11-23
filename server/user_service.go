@@ -1,7 +1,9 @@
 package server
 
 import (
+	"IM-system/internal/domain"
 	"IM-system/internal/logger"
+	"IM-system/internal/protocol"
 	"IM-system/user"
 
 	"context"
@@ -229,28 +231,11 @@ func (s *Server) PrivateHistory(usr *user.User, targetID int64) {
 			"error", err,
 		)
 
-		_ = s.SendSystemMessage(
-			usr,
-			"获取历史消息失败",
-		)
+		s.sendCommandError(usr, domain.CmdPrivateHistory, "history_query_failed", "获取历史消息失败")
 		return
 	}
 
-	for i := len(page.Messages) - 1; i >= 0; i-- {
-		msg := page.Messages[i]
-
-		text := fmt.Sprintf(
-			"[%s] %s: %s",
-			msg.Time.Format("15:04:05"),
-			msg.FromNickname,
-			msg.Content,
-		)
-
-		_ = s.SendSystemMessage(
-			usr,
-			text,
-		)
-	}
+	s.sendHistory(usr, protocol.HistoryResponse{PeerID: targetID, Messages: page.Messages})
 }
 
 // Help

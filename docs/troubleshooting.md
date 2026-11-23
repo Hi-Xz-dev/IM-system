@@ -271,7 +271,7 @@
 
 **位置：** [message.go](../internal/domain/message.go) 的 `NewMessage`；[message_service.go](../internal/message/message_service.go) 的 `toDomainMessages`；[message_repository.go](../internal/repository/message_repository.go)；[003_create_messages.sql](../migrations/003_create_messages.sql)。
 
-**现状：** 实时消息与结构化历史使用同一个 `message_id`。两类历史查询均按 `created_at DESC, id DESC` 排序，同一秒的记录按数据库自增主键决定顺序。HTTP 历史接口每页返回最多 20 条，支持通过游标继续查更早记录。认证等部分输出为纯文本，聊天历史命令仍把最近 20 条格式化为系统文本。
+**现状：** 实时消息与结构化历史使用同一个 `message_id`。两类历史查询均按 `created_at DESC, id DESC` 排序，同一秒的记录按数据库自增主键决定顺序。HTTP 历史接口每页返回最多 20 条，支持通过游标继续查更早记录。TCP 和 WebSocket 的历史命令成功时返回 `history`，失败时返回包含命令名和错误码的 `error`。其他命令及认证输出仍有部分使用纯文本或系统通知。
 
 **检查步骤：** 快速发送超过 20 条带编号消息，比对实时与历史 ID、排序和可继续读取性；用统一客户端解析认证、聊天、错误、历史响应。
 

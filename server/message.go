@@ -7,8 +7,41 @@ import (
 
 	"IM-system/user"
 
+	"encoding/json"
 	"fmt"
 )
+
+func (s *Server) sendHistory(usr *user.User, response protocol.HistoryResponse) {
+	// 仓储按从新到旧排序，聊天命令继续按从旧到新展示。
+	ordered := make([]domain.Message, len(response.Messages))
+	for i, msg := range response.Messages {
+		ordered[len(ordered)-1-i] = msg
+	}
+	response.Type = protocol.HistoryResponseType
+	response.Messages = ordered
+
+	data, err := json.Marshal(response)
+	if err != nil {
+		logger.Log.Error("encode history response failed", "user_id", usr.ID, "error", err)
+		return
+	}
+	if err := usr.SendMsg(string(data)); err != nil {
+		logger.Log.Warn("send history response failed", "user_id", usr.ID, "error", err)
+	}
+}
+
+func (s *Server) sendCommandError(usr *user.User, cmd domain.CommandType, code, message string) {
+	data, err := json.Marshal(protocol.ErrorResponse{
+		Type: "error", Command: cmd, Code: code, Message: message,
+	})
+	if err != nil {
+		logger.Log.Error("encode command error response failed", "command", cmd, "error", err)
+		return
+	}
+	if err := usr.SendMsg(string(data)); err != nil {
+		logger.Log.Warn("send command error response failed", "user_id", usr.ID, "command", cmd, "error", err)
+	}
+}
 
 // SendSystemMessage 系统消息
 func (s *Server) SendSystemMessage(

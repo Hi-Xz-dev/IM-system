@@ -1,8 +1,10 @@
 package server
 
 import (
+	"IM-system/internal/domain"
 	"IM-system/internal/logger"
 	"IM-system/internal/model"
+	"IM-system/internal/protocol"
 	"IM-system/room"
 	"IM-system/user"
 	"context"
@@ -52,8 +54,12 @@ func (s *Server) RoomHistory(
 ) {
 	page, err := s.GetRoomHistoryForUser(context.Background(), usr.ID, roomID, nil)
 	if err != nil {
-		if err == ErrRoomNotFound || err == ErrNotRoomMember {
-			_ = s.sendRoomAccessError(usr, err)
+		switch err {
+		case ErrRoomNotFound:
+			s.sendCommandError(usr, domain.CmdRoomHistory, "room_not_found", "房间不存在")
+			return
+		case ErrNotRoomMember:
+			s.sendCommandError(usr, domain.CmdRoomHistory, "not_room_member", "当前未加入房间")
 			return
 		}
 		logger.Log.Error(
@@ -63,28 +69,11 @@ func (s *Server) RoomHistory(
 			"error", err,
 		)
 
-		_ = s.SendSystemMessage(
-			usr,
-			"获取房间历史消息失败",
-		)
+		s.sendCommandError(usr, domain.CmdRoomHistory, "history_query_failed", "获取房间历史消息失败")
 		return
 	}
 
-	for i := len(page.Messages) - 1; i >= 0; i-- {
-		msg := page.Messages[i]
-
-		text := fmt.Sprintf(
-			"[%s] %s: %s",
-			msg.Time.Format("15:04:05"),
-			msg.FromNickname,
-			msg.Content,
-		)
-
-		_ = s.SendSystemMessage(
-			usr,
-			text,
-		)
-	}
+	s.sendHistory(usr, protocol.HistoryResponse{RoomID: roomID, Messages: page.Messages})
 }
 
 // 加入房间

@@ -253,6 +253,19 @@ createApp({setup(){
     // JSON 消息
     try{
       let msg=JSON.parse(raw);
+      if(msg.type==='error'){
+        ad('',msg.message,true,ch.value);
+        return;
+      }
+      if(msg.type==='history'){
+        const target=msg.room_id ? String(msg.room_id) : 'pv:'+msg.peer_id;
+        if(msg.messages.length===0){ad('','暂无历史消息',true,target);return}
+        for(const entry of msg.messages){
+          const time=new Date(entry.time).toLocaleTimeString();
+          ad('',`[${time}] ${entry.from_nickname}: ${entry.content}`,true,target);
+        }
+        return;
+      }
       if(msg.type==='system'){
         let isSysNotify=(msg.from===0&&msg.from_nickname==='系统');
         if(msg.content==='认证成功'){sb.t='';la();return}

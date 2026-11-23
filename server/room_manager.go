@@ -13,37 +13,15 @@ import (
 
 // 房间人数
 func (s *Server) Members(usr *user.User, roomID int64) {
-	s.mapLock.RLock()
-
-	if !usr.InRoom(roomID) {
-		s.mapLock.RUnlock()
-		_ = s.SendSystemMessage(usr, "当前未加入房间")
+	members, err := s.GetMembers(usr.ID, roomID)
+	if err != nil {
+		_ = s.sendRoomAccessError(usr, err)
 		return
 	}
-
-	r, ok := s.Rooms[roomID]
-
-	if !ok {
-		s.mapLock.RUnlock()
-		_ = s.SendSystemMessage(usr, "房间不存在")
-		return
+	names := make([]string, 0, len(members))
+	for _, member := range members {
+		names = append(names, member.Nickname)
 	}
-
-	names := make([]string, 0, len(r.Users))
-
-	for userID := range r.Users {
-		profile, ok := s.Profiles[userID]
-		if !ok {
-			continue
-		}
-
-		names = append(
-			names,
-			profile.Nickname,
-		)
-	}
-
-	s.mapLock.RUnlock()
 
 	_ = s.SendSystemMessage(
 		usr,
@@ -72,13 +50,12 @@ func (s *Server) RoomHistory(
 	usr *user.User,
 	roomID int64,
 ) {
-	messages, err := s.messageService.GetRoomHistory(
-		context.Background(),
-		roomID,
-		20,
-	)
-
+	messages, err := s.GetRoomHistoryForUser(context.Background(), usr.ID, roomID)
 	if err != nil {
+		if err == ErrRoomNotFound || err == ErrNotRoomMember {
+			_ = s.sendRoomAccessError(usr, err)
+			return
+		}
 		logger.Log.Error(
 			"get room history failed",
 			"user_id", usr.ID,
@@ -321,27 +298,6 @@ func (s *Server) GetRooms() []RoomInfo {
 		rooms = append(rooms, info)
 	}
 	return rooms
-}
-
-// 返回房间成员
-func (s *Server) GetMembers(roomID int64) ([]*user.User, bool) {
-	s.mapLock.RLock()
-	defer s.mapLock.RUnlock()
-	r, ok := s.Rooms[roomID]
-	if !ok {
-		return nil, false
-	}
-	roomUsers := make([]*user.User, 0)
-
-	for _, userList := range r.Users {
-
-		for _, u := range userList {
-
-			roomUsers = append(roomUsers, u)
-		}
-	}
-
-	return roomUsers, true
 }
 
 // 把一个已经创建好的 Room 加进 Server.Rooms

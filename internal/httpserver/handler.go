@@ -61,17 +61,18 @@ func (h *Handler) RoomHistory(c *gin.Context) {
 		return
 	}
 
-	messages, err := h.messageService.GetRoomHistory(
+	userID, ok := getUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, Fail("not login"))
+		return
+	}
+	messages, err := h.server.GetRoomHistoryForUser(
 		c.Request.Context(),
+		userID,
 		roomID,
-		20,
 	)
 
-	if err != nil {
-		c.JSON(
-			http.StatusInternalServerError,
-			Fail("get room history failed"),
-		)
+	if writeRoomAccessError(c, err, "get room history failed") {
 		return
 	}
 
@@ -127,12 +128,30 @@ func (h *Handler) Members(c *gin.Context) {
 	if !ok {
 		return
 	}
-	members, ok := h.server.GetMembers(room)
+	userID, ok := getUserID(c)
 	if !ok {
-		c.JSON(http.StatusNotFound, Fail("room not found"))
+		c.JSON(http.StatusUnauthorized, Fail("not login"))
+		return
+	}
+	members, err := h.server.GetMembers(userID, room)
+	if writeRoomAccessError(c, err, "get room members failed") {
 		return
 	}
 	c.JSON(http.StatusOK, OK(members))
+}
+
+func writeRoomAccessError(c *gin.Context, err error, fallback string) bool {
+	switch {
+	case err == nil:
+		return false
+	case errors.Is(err, server.ErrRoomNotFound):
+		c.JSON(http.StatusNotFound, Fail("room not found"))
+	case errors.Is(err, server.ErrNotRoomMember):
+		c.JSON(http.StatusForbidden, Fail("join room before viewing its contents"))
+	default:
+		c.JSON(http.StatusInternalServerError, Fail(fallback))
+	}
+	return true
 }
 
 // 加入房间

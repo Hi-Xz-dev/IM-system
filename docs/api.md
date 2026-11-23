@@ -35,15 +35,17 @@
 | GET | `/api/online-users` | 在线用户列表 |
 | GET | `/api/rooms` | 房间列表 |
 | GET | `/api/users/:user/rooms` | 当前登录用户已加入的房间 |
-| GET | `/api/rooms/:room/members` | 房间成员 |
+| GET | `/api/rooms/:room/members` | 当前成员可查看名单，按账号返回 `id` 和 `nickname` |
 | POST | `/api/rooms` | 创建房间，JSON 为 `{"name":"房间名"}` |
 | POST | `/api/rooms/:room/members/:user` | 当前登录用户加入房间 |
 | DELETE | `/api/rooms/:room/members/:user` | 当前登录用户退出房间 |
 | PUT | `/api/user/:user` | 当前登录用户改名，JSON 为 `{"name":"新昵称"}` |
-| GET | `/api/rooms/:room/history` | 房间最近 20 条消息 |
+| GET | `/api/rooms/:room/history` | 当前成员可查看房间最近 20 条消息 |
 | GET | `/api/private/:user/history` | 与指定用户的最近 20 条私聊消息 |
 
 当前实现中，查询已加入房间、加入/退出房间和改名操作以 JWT 中的用户身份为准，路径中的 `:user` 不决定操作对象；私聊历史的 `:user` 则表示对方用户。
+
+登录后可以列出和加入公开房间。HTTP、TCP 和 WebSocket 都要求当前账号已入房才能查看成员及最近 20 条历史，包含入房前的消息。主动退房或账号所有端离线后，须重新加入才能查看。HTTP 对未入房返回 403，对不存在的房间返回 404。
 
 ## TCP / WebSocket 命令
 

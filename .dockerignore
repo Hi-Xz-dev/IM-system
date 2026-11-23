@@ -1,0 +1,9 @@
+.git
+.env
+.env.*
+.idea
+.vscode
+.DS_Store
+IM-system
+*.test
+*.out

@@ -24,3 +24,8 @@ Thumbs.db
 
 # Dependencies
 vendor/
+
+# Local Docker Compose credentials
+.env
+.env.*
+!.env.example

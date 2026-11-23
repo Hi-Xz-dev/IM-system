@@ -27,7 +27,27 @@ web/              网页聊天界面
 docs/            HTTP 接口和通信命令说明
 ```
 
-## 本地运行
+## Docker 一键启动
+
+安装 Git 和 Docker Desktop（或 Docker Engine + Compose），然后在终端运行这一行：
+
+```bash
+git clone https://github.com/Hi-Xz-dev/IM-system.git && ./IM-system/start.sh
+```
+
+启动成功后，打开 [聊天页面](http://127.0.0.1:8081/web/)。Go 服务、MySQL 和 RabbitMQ 由 Docker Compose 启动。
+
+脚本首次运行自动生成 `.env`，后续启动沿用同一份密钥和密码。在已下载的 `IM-system` 目录中运行 `./start.sh` 即可再次启动。Docker Desktop 关闭时会尝试自动启动它。使用独立 Docker Engine 时，需确保当前用户能连接引擎。
+
+首次运行会构建镜像，之后沿用本地镜像。修改代码后，运行 `./start.sh --build` 更新镜像并启动。
+
+Go 程序与网页资源打入同一镜像，MySQL 和 RabbitMQ 各自运行在独立容器。HTTP/WebSocket 使用本机 8081，原始 TCP 使用本机 8080；MySQL 和 RabbitMQ 通过 Compose 内部网络访问。
+
+MySQL 的数据卷首次初始化时会自动执行 `migrations/` 下的 SQL。两项依赖通过健康检查后，Compose 才启动 IM 服务。运行 `docker compose logs -f im` 查看日志，运行 `docker compose down` 停止容器并保留数据库和队列数据。[Docker Compose 启动顺序](https://docs.docker.com/compose/how-tos/startup-order/)
+
+单独构建 Go 服务镜像可执行 `docker build -t im-system:local .`。需要手动配置时可参考 `.env.example`。
+
+## 本机直接运行
 
 准备 Go 1.26.3 或更高版本（见 `go.mod`）、MySQL 8 和 RabbitMQ（支持 quorum 队列）。以下命令均在项目根目录执行。
 
@@ -40,7 +60,7 @@ docs/            HTTP 接口和通信命令说明
    mysql -u root -p im_system < migrations/003_create_messages.sql
    ```
 
-2. 检查 [internal/config/config.go](internal/config/config.go) 中的 MySQL 配置。默认使用 `root`、空密码连接本地数据库，仅在与你的实际配置不一致时修改；启动 MySQL 服务不等于登录或设置密码，Go 程序会自行连接。JWT 密钥通过环境变量 `JWT_SECRET` 提供，至少 32 字节，未设置或过短时服务会停止启动。使用 `openssl rand -hex 32` 生成随机密钥后，在启动服务的终端设置 `export JWT_SECRET='<替换为生成的随机密钥>'`；将实际密钥安全保存，不提交到 Git，后续启动保持相同值。更换密钥后，旧 Token 将无法验证。
+2. 默认使用 `root`、空密码连接本地 MySQL。需要调整时可设置 `MYSQL_HOST`、`MYSQL_USER`、`MYSQL_PASSWORD` 和 `MYSQL_DATABASE`。TCP 和 HTTP 的监听地址可分别通过 `TCP_HOST` 和 `HTTP_HOST` 调整。JWT 密钥通过环境变量 `JWT_SECRET` 提供，至少 32 字节。使用 `openssl rand -hex 32` 生成随机密钥后，在启动服务的终端设置 `export JWT_SECRET='<替换为生成的随机密钥>'`。更换密钥后，旧 Token 将无法验证。
 
    其余默认配置如下：
 

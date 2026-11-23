@@ -42,18 +42,19 @@ type MySQLConfig struct {
 func Load() *Config {
 	return &Config{
 		TCP: TCPConfig{
-			Host: "127.0.0.1",
+			Host: envOr("TCP_HOST", "127.0.0.1"),
 			Port: 8080,
 		},
 		HTTP: HTTPConfig{
-			Host: "127.0.0.1",
+			Host: envOr("HTTP_HOST", "127.0.0.1"),
 			Port: 8081,
 		},
 		MySQL: MySQLConfig{
-			Host:     "127.0.0.1",
+			Host:     envOr("MYSQL_HOST", "127.0.0.1"),
 			Port:     3306,
-			Username: "root",
-			DataName: "im_system",
+			Username: envOr("MYSQL_USER", "root"),
+			Password: os.Getenv("MYSQL_PASSWORD"),
+			DataName: envOr("MYSQL_DATABASE", "im_system"),
 		},
 		JWT: JWTConfig{
 			Secret: os.Getenv("JWT_SECRET"),
@@ -63,4 +64,11 @@ func Load() *Config {
 			QueueName: "im.message.persist",
 		},
 	}
+}
+
+func envOr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }

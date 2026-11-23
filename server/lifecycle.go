@@ -3,15 +3,25 @@ package server
 import (
 	"IM-system/internal/logger"
 	"IM-system/user"
+	"context"
 	"fmt"
 	"io"
 	"net"
+	"time"
 )
 
 // 启动服务器接口
 func (s *Server) Start() error {
-	//在指定 IP 和端口创建 TCP 监听器 listener
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.IP, s.Port))
+	// 监听器为接入的 TCP 连接设置系统保活探测。
+	listenConfig := net.ListenConfig{
+		KeepAliveConfig: net.KeepAliveConfig{
+			Enable:   true, //启用 TCP 保活探测
+			Idle:     30 * time.Second, //连接空闲 30 秒后，系统发出第一次探测
+			Interval: 10 * time.Second, //探测没回应时，按 10 秒间隔重试，连续 3 次没回应后由系统判定连接失效。
+			Count:    3, //没收到回应的探测包
+		},
+	}
+	listener, err := listenConfig.Listen(context.Background(), "tcp", fmt.Sprintf("%s:%d", s.IP, s.Port))
 	if err != nil {
 		return fmt.Errorf("listen tcp: %w", err)
 	}

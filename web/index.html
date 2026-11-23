@@ -63,6 +63,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* chat */
 .ctx{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
 .ctt{padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border);font-size:14px;font-weight:600}
+.chat-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.chat-head h2{font-size:15px;overflow-wrap:anywhere}
+.chat-actions{display:flex;align-items:center;gap:8px}
+.history-tools{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.history-note,.message-time{font-size:12px;color:#64748b}
+.history-error{color:var(--danger)}
+.message-time{margin-left:8px;font-weight:400}
+.mobile-nav{display:none}
+.btn:disabled,.inp input:disabled{opacity:.55;cursor:not-allowed}
 .msgs{flex:1;overflow-y:auto;padding:16px}
 .msg{margin-bottom:10px;font-size:14px;line-height:1.6;word-break:break-all}
 .msg .s{font-weight:600;color:var(--primary);margin-right:6px}
@@ -72,12 +81,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .inp input{flex:1;padding:9px 14px;border:1px solid var(--border);border-radius:20px;font-size:14px}
 .inp input:focus{outline:none;border-color:var(--primary)}
 .inp .btn{border-radius:20px;padding:9px 22px;font-size:14px}
-@media(max-width:768px){.side{display:none}}
+@media(max-width:768px){
+  .mobile-nav{display:inline-block}
+  .lay{flex-direction:column}
+  .side{display:none;width:100%;max-height:38dvh;border-right:0;border-bottom:1px solid var(--border)}
+  .side.open{display:flex}
+  .ctx{min-height:0}
+  .inp input{min-width:0}
+  .hdr{padding:0 10px;gap:8px}
+  .hdr select{min-width:0;max-width:32vw}
+  .auth .card{width:min(360px,calc(100% - 32px))}
+}
+[v-cloak]{display:none}
 </style>
 </head>
 <body>
 
-<div id="app">
+<div id="app" v-cloak>
   <!-- login -->
   <div v-if="!on" class="auth">
     <div class="card">
@@ -100,9 +120,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="hdr">
       <h1>Go IM</h1>
       <div style="display:flex;align-items:center;gap:10px">
-        <select v-model="ch">
+        <button class="btn btn-s mobile-nav" @click="showSidebar=!showSidebar" :aria-expanded="showSidebar">会话</button>
+        <select v-model="ch" aria-label="切换会话">
           <option value="public">公聊大厅</option>
-          <option v-for="r in mro" :value="r"># {{ r }}</option>
+          <option v-for="r in joinedRooms" :key="r.ID" :value="'room:'+r.ID"># {{ r.Name }}</option>
+          <option v-if="ch.startsWith('pv:') || (activeRoom && !isJoined)" :value="ch">{{ cht }}</option>
         </select>
         <button class="btn btn-s" @click="la" style="margin-right:4px">刷新</button>
         <span style="font-size:13px;cursor:pointer" @click="doRename" title="点击改名">{{ mn }}</span>
@@ -111,7 +133,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
     <div class="bnr" :class="sb.c" v-if="sb.t">{{ sb.t }}</div>
     <div class="lay">
-      <div class="side">
+      <div class="side" :class="{open:showSidebar}">
         <div class="tabs">
           <div class="tab" :class="{on:tab==='rooms'}" @click="tab='rooms'">房间</div>
           <div class="tab" :class="{on:tab==='users'}" @click="tab='users'">在线({{ol.length}})</div>
@@ -124,11 +146,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div style="color:var(--danger);font-size:12px;margin-bottom:8px" v-if="re">{{ re }}</div>
           <ul class="lst">
             <li v-if="rms.length===0" class="emp">暂无房间</li>
-            <li v-for="r in rms" :class="{on:ch===r.Name}" @click="ch=r.Name">
+            <li v-for="r in rms" :key="r.ID" :class="{on:ch==='room:'+r.ID}" @click="openConversation('room:'+r.ID)">
               <span>{{ r.Name }}<span class="cnt">{{ r.Count }}人</span></span>
               <span class="act">
-                <button class="btn btn-s btn-o" @click.stop="join(r.Name)">加入</button>
-                <button class="btn btn-s btn-o btn-d" @click.stop="quit(r.Name)">退出</button>
+                <button v-if="!mro.includes(r.Name)" class="btn btn-s btn-o" :disabled="!wo" @click.stop="join(r)">加入</button>
+                <button v-else class="btn btn-s btn-o btn-d" @click.stop="quit(r)">退出</button>
               </span>
             </li>
           </ul>
@@ -136,28 +158,48 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="pnl" v-show="tab==='users'">
           <ul class="lst">
             <li v-if="ol.length===0" class="emp">暂无在线用户</li>
-            <li v-for="u in ol" @click="ch='pv:'+u.id;tab='rooms'">
+            <li v-for="u in ol" :key="u.id" :class="{on:ch==='pv:'+u.id}" @click="openConversation('pv:'+u.id)">
               <span><b>{{ u.nickname }}</b><span style="color:var(--muted);font-size:11px;margin-left:4px">ID:{{ u.id }}</span></span>
-              <span v-if="u.nickname===mn" style="color:var(--muted);font-style:italic;font-size:11px">你</span>
+              <span v-if="isMe(u.id,u.nickname)" style="color:var(--muted);font-style:italic;font-size:11px">你</span>
             </li>
           </ul>
         </div>
       </div>
       <div class="ctx">
-        <div class="ctt">{{ cht }}</div>
-        <div class="msgs" ref="bx">
+        <div class="ctt chat-head">
+          <h2>{{ cht }}</h2>
+          <div class="chat-actions">
+            <button v-if="activeRoom && !isJoined" class="btn btn-s btn-p" :disabled="!wo" @click="join(activeRoom)">加入房间</button>
+            <button v-if="historyOpen" class="btn btn-s btn-o" @click="closeHistory">返回聊天</button>
+            <button v-else-if="canViewHistory" class="btn btn-s btn-o" @click="openHistory">查看历史</button>
+          </div>
+        </div>
+        <div v-if="historyOpen" class="msgs" ref="historyBox">
+          <div class="history-tools" aria-live="polite">
+            <button v-if="historyCursor" class="btn btn-s btn-o" :disabled="historyBusy" @click="loadHistory(true)">加载更早消息</button>
+            <button v-if="historyError && !historyBusy" class="btn btn-s btn-o" @click="loadHistory(Boolean(historyCursor))">重试</button>
+            <span v-if="historyBusy" class="history-note">正在加载…</span>
+            <span v-else-if="historyError" class="history-note history-error">{{ historyError }}</span>
+            <span v-else-if="!historyCursor && historyItems.length" class="history-note">已到最早一条</span>
+            <span v-else-if="!historyItems.length" class="history-note">暂无历史消息</span>
+          </div>
+          <div v-for="entry in historyItems" :key="entry.id" class="msg">
+            <span class="s">{{ isMe(entry.from,entry.from_nickname) ? '你' : entry.from_nickname }}</span>{{ entry.content }}
+            <time class="message-time" :datetime="entry.time">{{ formatMessageTime(entry.time) }}</time>
+          </div>
+        </div>
+        <div v-else class="msgs" ref="bx">
+          <p v-if="!fmsgs.length" class="history-note">{{ activeRoom && !isJoined ? '加入房间后即可聊天并查看历史。' : '暂无消息' }}</p>
           <div v-for="(m,i) in fmsgs" :key="i" class="msg">
             <span v-if="m.sy" class="sy">{{ m.tx }}</span>
             <template v-else>
-              <span v-if="m.ck&&m.ck.startsWith('pv:')" style="background:#fce7f3;color:#be185d;font-size:10px;padding:1px 5px;border-radius:3px;margin-right:4px">{{ m.fr===mn?'发给':'来自 '+m.fr }}</span>
-              <span v-else-if="m.ck&&m.ck!=='public'" style="background:#e0e7ff;color:#4338ca;font-size:10px;padding:1px 5px;border-radius:3px;margin-right:4px">{{ m.ck }}</span>
-              <span class="s" :class="{me:m.fr===mn}">{{ m.fr===mn?'你':m.fr }}</span>{{ m.tx }}
+              <span class="s" :class="{me:m.mine}">{{ m.mine?'你':m.fr }}</span>{{ m.tx }}
             </template>
           </div>
         </div>
-        <div class="inp">
-          <input v-model="mi" :placeholder="inh" @keyup.enter="snd" :disabled="!wo">
-          <button class="btn btn-p" @click="snd" :disabled="!wo">发送</button>
+        <div v-if="!historyOpen" class="inp">
+          <input v-model="mi" :placeholder="inh" @keyup.enter="snd" :disabled="!canSend" aria-label="聊天消息">
+          <button class="btn btn-p" @click="snd" :disabled="!canSend">发送</button>
         </div>
       </div>
     </div>
@@ -165,16 +207,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <script>
-const {createApp,ref,reactive,computed,nextTick,onMounted,onUnmounted}=Vue;
+const {createApp,ref,reactive,computed,watch,nextTick,onMounted,onUnmounted}=Vue;
 
 createApp({setup(){
-  const A='',WS='ws://'+location.host+'/ws';
-  let ws=null,ti=null,rc=0;
+  const WS=(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws';
+  let ws=null,ti=null,historyRequest=null;
 
   // auth
   const on=ref(false),reg=ref(false),ld=ref(false),ae=ref('');
   const f=reactive({user:'',nick:'',pwd:''});
-  const mn=ref('');
+  const mn=ref(''),me=ref('');
 
   // ws
   const wo=ref(false),sb=reactive({t:'',c:'warn'});
@@ -182,8 +224,16 @@ createApp({setup(){
   // chat
   const ch=ref('public'),mi=ref(''),ms=ref([]),bx=ref(null),tab=ref('rooms');
   const rms=ref([]),ol=ref([]),mro=ref([]),nr=ref(''),re=ref('');
+  const showSidebar=ref(false);
+  const historyOpen=ref(false),historyBusy=ref(false),historyError=ref('');
+  const historyItems=ref([]),historyCursor=ref(''),historyBox=ref(null);
 
   // computed
+  const joinedRooms=computed(()=>rms.value.filter(r=>mro.value.includes(r.Name)));
+  const activeRoom=computed(()=>rms.value.find(r=>'room:'+r.ID===ch.value));
+  const isJoined=computed(()=>Boolean(activeRoom.value && mro.value.includes(activeRoom.value.Name)));
+  const canViewHistory=computed(()=>ch.value.startsWith('pv:')||isJoined.value);
+  const canSend=computed(()=>wo.value && (ch.value==='public'||canViewHistory.value));
   const cht=computed(()=>{
     if(ch.value==='public')return '公聊大厅';
     if(ch.value.startsWith('pv:')){
@@ -191,22 +241,93 @@ createApp({setup(){
       let u=ol.value.find(o=>String(o.id)===id);
       return '私聊 '+(u?u.nickname:'ID:'+id);
     }
-    return '# '+ch.value;
+    return '# '+(activeRoom.value?.Name||ch.value.slice('room:'.length));
   });
   const inh=computed(()=>{
     if(!wo.value)return '未连接...';
+    if(!canSend.value)return '请先加入房间';
     if(ch.value==='public')return '输入公聊消息...';
     if(ch.value.startsWith('pv:')){let id=ch.value.replace('pv:','');let u=ol.value.find(o=>String(o.id)===id);return '私聊 '+(u?u.nickname:'ID:'+id)+'...';}
-    return '发送到 #'+ch.value+'...';
+    return '发送到 '+cht.value+'...';
   });
-  const fmsgs=computed(()=>ms.value);
+  const fmsgs=computed(()=>ms.value.filter(msg=>msg.ck===ch.value));
+  watch(ch,closeHistory,{flush:'sync'});
+  watch(canViewHistory,allowed=>{if(!allowed)closeHistory()});
 
   // helpers
   function tk(){return sessionStorage.getItem('im_token')||''}
-  async function api(m,p,b){
+  function isMe(userID,nickname){return me.value?String(userID)===me.value:nickname===mn.value}
+  function request(m,p,b,signal){
     let o={method:m,headers:{}};let t=tk();if(t)o.headers['Authorization']='Bearer '+t;
     if(b){o.headers['Content-Type']='application/json';o.body=JSON.stringify(b)}
-    let r=await fetch(A+p,o);return r.json();
+    return fetch(p,{...o,signal});
+  }
+  async function api(m,p,b){
+    const response=await request(m,p,b);
+    return response.json();
+  }
+  function openConversation(key){
+    ch.value=key;
+    showSidebar.value=false;
+  }
+  function scrollChat(){
+    nextTick(()=>{if(bx.value)bx.value.scrollTop=bx.value.scrollHeight});
+  }
+  function formatMessageTime(value){
+    return new Date(value).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+
+  // history
+  function closeHistory(){
+    historyRequest?.abort();
+    historyRequest=null;
+    historyOpen.value=false;
+    historyBusy.value=false;
+    historyError.value='';
+    historyCursor.value='';
+    historyItems.value=[];
+    scrollChat();
+  }
+  function openHistory(){
+    if(!canViewHistory.value)return;
+    historyOpen.value=true;
+    return loadHistory();
+  }
+  async function loadHistory(older=false){
+    if(!historyOpen.value||!canViewHistory.value||historyBusy.value)return;
+    if(older&&!historyCursor.value)return;
+    const path=ch.value.startsWith('pv:')
+      ? '/api/private/'+ch.value.slice(3)+'/history'
+      : '/api/rooms/'+activeRoom.value.ID+'/history';
+    const query=older?'?'+new URLSearchParams({before:historyCursor.value}):'';
+    const ctrl=new AbortController();
+    historyRequest=ctrl;
+    historyBusy.value=true;
+    historyError.value='';
+    try{
+      const response=await request('GET',path+query,undefined,ctrl.signal);
+      const body=await response.json();
+      if(historyRequest!==ctrl)return;
+      if(!response.ok||body.code!==0){
+        throw new Error(response.status===403?'请先加入房间再查看历史。':body.msg||'历史加载失败');
+      }
+      const oldHeight=historyBox.value?.scrollHeight||0;
+      const oldTop=historyBox.value?.scrollTop||0;
+      const page=body.data.slice().reverse();
+      historyItems.value=older?[...page,...historyItems.value]:page;
+      historyCursor.value=response.headers.get('X-Next-Cursor')||'';
+      await nextTick();
+      if(historyRequest===ctrl&&historyBox.value){
+        historyBox.value.scrollTop=older?oldTop+historyBox.value.scrollHeight-oldHeight:historyBox.value.scrollHeight;
+      }
+    }catch(err){
+      if(historyRequest===ctrl)historyError.value=err.message;
+    }finally{
+      if(historyRequest===ctrl){
+        historyRequest=null;
+        historyBusy.value=false;
+      }
+    }
   }
 
   // auth actions
@@ -218,8 +339,10 @@ createApp({setup(){
       if(r.code===0&&r.data){
         sessionStorage.setItem('im_token',r.data.Token||r.data.token);
         sessionStorage.setItem('im_nick',r.data.Nickname||r.data.nickname);
+        me.value=String(r.data.UserID??r.data.user_id??'');
+        sessionStorage.setItem('im_user_id',me.value);
         mn.value=r.data.Nickname||r.data.nickname;
-        on.value=true;nextTick(()=>{cn();la()});
+        on.value=true;nextTick(cn);
       }else ae.value=r.msg||'登录失败';
     }catch(e){ae.value='网络错误:'+e.message}
     ld.value=false;
@@ -234,19 +357,34 @@ createApp({setup(){
     ld.value=false;
   }
   function out(){
-    if(ws)ws.close();if(ti)clearTimeout(ti);
-    sessionStorage.removeItem('im_token');on.value=false;
+    const previous=ws;ws=null;previous?.close();
+    clearTimeout(ti);
+    closeHistory();
+    for(const key of ['im_token','im_nick','im_user_id'])sessionStorage.removeItem(key);
+    on.value=false;me.value='';mi.value='';showSidebar.value=false;
     ms.value=[];rms.value=[];ol.value=[];mro.value=[];ch.value='public';wo.value=false;
   }
 
   // ws
   function cn(){
+    const token=tk();
+    if(!token)return;
     sb.t='连接中...';sb.c='warn';
-    ws=new WebSocket(WS);
-    ws.onopen=()=>{wo.value=true;rc=0;sb.t='正在认证...';let t=tk();if(t)ws.send('auth|'+t);};
-    ws.onmessage=(e)=>{hd(e.data.trim())};
-    ws.onclose=()=>{wo.value=false;sb.t='断开，重连('+(++rc)+'s)...';sb.c='err';ti=setTimeout(cn,1000);if(rc>30)rc=30;};
-    ws.onerror=()=>{};
+    const socket=new WebSocket(WS);
+    ws=socket;
+    socket.onopen=()=>{if(ws===socket){sb.t='正在认证...';socket.send('auth|'+token)}};
+    socket.onmessage=e=>{if(ws===socket)hd(e.data.trim())};
+    socket.onclose=()=>{
+      if(ws!==socket)return;
+      wo.value=false;
+      if(!tk())return;
+      sb.t='连接已断开，正在重连…';sb.c='err';ti=setTimeout(cn,1000);
+    };
+  }
+  function authenticated(){
+    wo.value=true;
+    sb.t='';
+    la();
   }
   function hd(raw){
     if(!raw)return;
@@ -258,7 +396,7 @@ createApp({setup(){
         return;
       }
       if(msg.type==='history'){
-        const target=msg.room_id ? String(msg.room_id) : 'pv:'+msg.peer_id;
+        const target=msg.room_id ? 'room:'+msg.room_id : 'pv:'+msg.peer_id;
         if(msg.messages.length===0){ad('','暂无历史消息',true,target);return}
         for(const entry of msg.messages){
           const time=new Date(entry.time).toLocaleTimeString();
@@ -268,16 +406,25 @@ createApp({setup(){
       }
       if(msg.type==='system'){
         let isSysNotify=(msg.from===0&&msg.from_nickname==='系统');
-        if(msg.content==='认证成功'){sb.t='';la();return}
+        if(msg.content==='认证成功'&&isSysNotify){authenticated();return}
         if(isSysNotify){ad(msg.from_nickname,msg.content,true,ch.value);la();return}
-        ad(msg.from_nickname,msg.content,false,'public');la();return;
+        ad(msg.from_nickname,msg.content,false,'public',isMe(msg.from,msg.from_nickname));la();return;
       }
-      if(msg.type==='private'){ad(msg.from_nickname,msg.content,false,'pv:'+msg.from);return}
-      if(msg.type==='room'){ad(msg.from_nickname,msg.content,false,msg.room_id);return}
+      if(msg.type==='private'){
+        const mine=isMe(msg.from,msg.from_nickname);
+        ad(msg.from_nickname,msg.content,false,'pv:'+(mine?msg.to:msg.from),mine);
+        return;
+      }
+      if(msg.type==='room'){ad(msg.from_nickname,msg.content,false,'room:'+msg.room_id,isMe(msg.from,msg.from_nickname));return}
       ad('',msg.content||raw,false,'public');
     }catch(e){
       // 兼容旧纯文本格式
-      if(raw.startsWith('[系统] 认证成功')){sb.t='';la();return}
+      if(raw.startsWith('[系统] 认证成功')){authenticated();return}
+      if(!wo.value&&/^\[系统\]\s*认证失败/.test(raw)){
+        out();
+        ae.value='会话认证失败，请重新登录。';
+        return;
+      }
       if(raw.startsWith('[系统]')){ad('',raw.replace('[系统]','').trim(),true,ch.value);la();return}
       let m=raw.match(/^\[私聊\]\[(.+?) -> (.+?)\] (.+)/);
       if(m){ad(m[1],m[3],false,'pv:'+m[1]);return}
@@ -288,54 +435,87 @@ createApp({setup(){
       ad('',raw,false,'public');
     }
   }
-  function ad(fr,tx,sy,ck){ms.value.push({fr,tx,sy,ck});if(ms.value.length>500)ms.value.shift();nextTick(()=>{if(bx.value)bx.value.scrollTop=bx.value.scrollHeight})}
+  function ad(fr,tx,sy,ck,mine=false){
+    ms.value.push({fr,tx,sy,ck,mine});
+    if(ms.value.length>500)ms.value.shift();
+    if(ck===ch.value&&!historyOpen.value)scrollChat();
+  }
   function snd(){
-    let t=mi.value.trim();if(!t||!wo.value)return;
+    let t=mi.value.trim();if(!t||!canSend.value)return;
     let cmd;
     if(ch.value==='public')cmd=t;
     else if(ch.value.startsWith('pv:')){
       cmd='to|'+ch.value.replace('pv:','')+'|'+t;
-      ad(mn.value,t,false,ch.value);
+      ad(mn.value,t,false,ch.value,true);
     }
-    else cmd='room|'+ch.value+'|'+t;
+    else cmd='room|'+activeRoom.value.ID+'|'+t;
     ws.send(cmd);
     mi.value='';
   }
 
   // data
   async function la(){await Promise.all([ldr(),ldo()]);await ldm()}
-  async function ldr(){try{let r=await api('GET','/api/rooms');if(r.code===0)rms.value=r.data||[]}catch(e){}}
-  async function ldo(){try{let r=await api('GET','/api/online-users');if(r.code===0)ol.value=r.data||[]}catch(e){}}
+  async function ldr(){const token=tk();try{let r=await api('GET','/api/rooms');if(token===tk()&&r.code===0)rms.value=r.data||[]}catch(e){}}
+  async function ldo(){const token=tk();try{let r=await api('GET','/api/online-users');if(token===tk()&&r.code===0)ol.value=r.data||[]}catch(e){}}
   async function ldm(){
-    try{let r=await api('GET','/api/users/'+(mn.value||'')+'/rooms');if(r.code===0&&r.data)mro.value=r.data||[]}catch(e){}
+    const token=tk();
+    try{
+      const response=await request('GET','/api/me/rooms');
+      const body=await response.json();
+      if(token!==tk())return;
+      if(body.code===0)mro.value=body.data||[];
+      else if(response.status===404)mro.value=[];
+    }catch(e){}
   }
 
   // room ops
   async function mkRoom(){
     let n=nr.value.trim();if(!n){re.value='请输入房间名';return}re.value='';
-    try{let r=await api('POST','/api/rooms',{name:n});if(r.code===0){nr.value='';if(!mro.value.includes(n))mro.value.push(n);ch.value=n;la()}else re.value=r.msg}catch(e){re.value='创建失败'}
+    try{
+      const r=await api('POST','/api/rooms',{name:n});
+      if(r.code!==0){re.value=r.msg;return}
+      nr.value='';
+      await la();
+      const room=rms.value.find(r=>r.Name===n);
+      if(room)openConversation('room:'+room.ID);
+    }catch(e){re.value='创建失败'}
   }
-  async function join(n){
-    try{let r=await api('POST','/api/rooms/'+n+'/members/'+mn.value);console.log('join resp:',r);
-    if(r&&r.code===0){if(!mro.value.includes(n))mro.value.push(n);ch.value=n;la()}else{alert((r&&r.msg)||'加入失败')}}catch(e){alert('加入失败:'+e.message)}
+  async function join(room){
+    const n=room.Name;
+    try{let r=await api('POST','/api/rooms/'+room.ID+'/membership');
+    if(r&&r.code===0){if(!mro.value.includes(n))mro.value.push(n);openConversation('room:'+room.ID);la()}else{alert((r&&r.msg)||'加入失败')}}catch(e){alert('加入失败:'+e.message)}
   }
-  async function quit(n){
-    try{let r=await api('DELETE','/api/rooms/'+n+'/members/'+mn.value);console.log('quit resp:',r);
-    if(r&&r.code===0){mro.value=mro.value.filter(x=>x!==n);if(ch.value===n)ch.value='public';la()}else{alert((r&&r.msg)||'退出失败')}}catch(e){alert('退出失败:'+e.message)}
+  async function quit(room){
+    const n=room.Name;
+    try{let r=await api('DELETE','/api/rooms/'+room.ID+'/membership');
+    if(r&&r.code===0){mro.value=mro.value.filter(x=>x!==n);if(ch.value==='room:'+room.ID)openConversation('public');la()}else{alert((r&&r.msg)||'退出失败')}}catch(e){alert('退出失败:'+e.message)}
   }
   async function doRename(){
     let nn=prompt('新昵称：',mn.value);if(!nn||nn===mn.value)return;
-    try{let r=await api('PUT','/api/user/'+mn.value,{name:nn.trim()});
+    try{let r=await api('PUT','/api/me/nickname',{name:nn.trim()});
     if(r&&r.code===0){mn.value=nn.trim();sessionStorage.setItem('im_nick',nn.trim());alert('改名成功')}else{alert((r&&r.msg)||'改名失败')}}catch(e){alert('改名失败:'+e.message)}
   }
 
   // init
   onMounted(()=>{
-    let t=tk();if(t){mn.value=sessionStorage.getItem('im_nick')||'';on.value=true;nextTick(()=>cn())}
+    if(tk()){
+      mn.value=sessionStorage.getItem('im_nick')||'';
+      me.value=sessionStorage.getItem('im_user_id')||'';
+      on.value=true;
+      nextTick(cn);
+    }
   });
-  onUnmounted(()=>{if(ws)ws.close();if(ti)clearTimeout(ti)});
+  onUnmounted(()=>{
+    const previous=ws;ws=null;previous?.close();
+    clearTimeout(ti);
+    historyRequest?.abort();
+    historyRequest=null;
+  });
 
-  return{on,reg,ld,ae,f,mn,wo,sb,ch,mi,ms,bx,tab,rms,ol,mro,nr,re,cht,inh,fmsgs,
+  return{on,reg,ld,ae,f,mn,wo,sb,ch,mi,bx,tab,rms,ol,mro,nr,re,cht,inh,fmsgs,isMe,
+    showSidebar,joinedRooms,activeRoom,isJoined,canViewHistory,canSend,openConversation,
+    historyOpen,historyBusy,historyError,historyItems,historyCursor,historyBox,
+    openHistory,closeHistory,loadHistory,formatMessageTime,
     doLogin,doReg,out,snd,mkRoom,join,quit,doRename,la}
 }}).mount('#app');
 </script>

@@ -77,112 +77,78 @@ func (s *Server) RoomHistory(
 }
 
 // 加入房间
-func (s *Server) JoinRoom(joinuser *user.User, roomID int64) {
+func (s *Server) JoinRoom(usr *user.User, roomID int64) {
+	result, _ := s.joinRoomForUser(usr.ID, roomID)
+	_ = s.SendSystemMessage(usr, result)
+}
+
+// joinRoomForUser 负责账号入房，首次加入时沿用房间消息的发布和投递流程。
+func (s *Server) joinRoomForUser(userID, roomID int64) (string, bool) {
 	s.mapLock.Lock()
-
 	r, ok := s.Rooms[roomID]
-
 	if !ok {
 		s.mapLock.Unlock()
-		s.SendSystemMessage(
-			joinuser,
-			"房间名不存在，请重试",
-		)
-		return
+		return "未找到房间", false
 	}
-	if joinuser.InRoom(roomID) {
-		s.joinAccountRoomUnsafe(joinuser, roomID)
+	sessions := s.OnlineUsers[userID]
+	if len(sessions) == 0 {
 		s.mapLock.Unlock()
-		s.SendSystemMessage(
-			joinuser,
-			"已加入房间"+r.Name,
-		)
-		return
+		return "未找到在线用户", false
 	}
-	s.joinAccountRoomUnsafe(joinuser, roomID)
 
-	users := s.getRoomUsersUnsafe(roomID)
-
-	s.mapLock.Unlock() //正常返回
-	//广播消息
-	if err := s.SendRoomMessage(
-		joinuser,
-		users,
-		roomID,
-		r.Name,
-		"加入房间",
-	); err != nil {
-		logger.Log.Error(
-			"send room message failed",
-			"error",
-			err,
-		)
+	sender := sessions[0]
+	roomName := r.Name
+	alreadyJoined := len(r.Users[userID]) > 0
+	s.joinAccountRoomUnsafe(sender, roomID)
+	if alreadyJoined {
+		s.mapLock.Unlock()
+		return "已加入房间：" + roomName, true
 	}
-	if err := s.SendSystemMessage(
-		joinuser,
-		"成功加入房间："+r.Name,
-	); err != nil {
 
-		logger.Log.Error(
-			"send system message failed",
-			"error",
-			err,
-		)
+	recipients := s.getRoomUsersUnsafe(roomID)
+	s.mapLock.Unlock()
+
+	// 成员状态已更新。发布通知失败时记录日志，入房仍然成功。
+	if err := s.SendRoomMessage(sender, recipients, roomID, roomName, "加入房间"); err != nil {
+		logger.Log.Error("send room join notification failed", "user_id", userID, "room_id", roomID, "error", err)
 	}
+	return "成功加入房间：" + roomName, true
 }
 
 // 退出房间
-func (s *Server) LeaveRoom(leaveuser *user.User, roomID int64) {
-	s.mapLock.Lock()
+func (s *Server) LeaveRoom(usr *user.User, roomID int64) {
+	result, _ := s.leaveRoomForUser(usr.ID, roomID)
+	_ = s.SendSystemMessage(usr, result)
+}
 
+// leaveRoomForUser 处理账号主动退房；普通断线仍由 Offline 清理单条连接。
+func (s *Server) leaveRoomForUser(userID, roomID int64) (string, bool) {
+	s.mapLock.Lock()
 	r, ok := s.Rooms[roomID]
 	if !ok {
 		s.mapLock.Unlock()
-		s.SendSystemMessage(
-			leaveuser,
-			"当前房间不存在",
-		) //防御式编程（Defensive Programming）
-		return
+		return "未找到房间", false
 	}
-
-	if !leaveuser.InRoom(roomID) {
+	if len(s.OnlineUsers[userID]) == 0 {
 		s.mapLock.Unlock()
-		s.SendSystemMessage(
-			leaveuser,
-			"当前未加入房间",
-		)
-		return
+		return "未找到在线用户", false
+	}
+	members := r.Users[userID]
+	if len(members) == 0 {
+		s.mapLock.Unlock()
+		return "未加入房间", true
 	}
 
-	s.leaveRoomUnsafe(leaveuser, roomID)
-
-	users := s.getRoomUsersUnsafe(roomID)
-
+	sender := members[0]
+	roomName := r.Name
+	s.leaveRoomUnsafe(sender, roomID)
+	recipients := s.getRoomUsersUnsafe(roomID)
 	s.mapLock.Unlock()
-	if err := s.SendRoomMessage(
-		leaveuser,
-		users,
-		roomID,
-		r.Name,
-		"离开房间",
-	); err != nil {
-		logger.Log.Error(
-			"send room message failed",
-			"error",
-			err,
-		)
-	}
-	if err := s.SendSystemMessage(
-		leaveuser,
-		"成功退出房间："+r.Name,
-	); err != nil {
 
-		logger.Log.Error(
-			"send system message failed",
-			"error",
-			err,
-		)
+	if err := s.SendRoomMessage(sender, recipients, roomID, roomName, "离开房间"); err != nil {
+		logger.Log.Error("send room leave notification failed", "user_id", userID, "room_id", roomID, "error", err)
 	}
+	return "成功退出房间：" + roomName, true
 }
 
 // 创建房间
@@ -389,43 +355,12 @@ func (s *Server) getRoomUsersUnsafe(
 
 //================HTTP========================
 
-// 加入房间
+// HTTP 加入房间
 func (s *Server) JoinRoomH(userID int64, roomID int64) (string, bool) {
-	s.mapLock.Lock()
-	defer s.mapLock.Unlock()
-	users, ok := s.OnlineUsers[userID]
-	if !ok {
-		return fmt.Sprintf("未找到用户(id=%d), 当前在线:%d人", userID, len(s.OnlineUsers)), false
-	}
-	if _, ok := s.Rooms[roomID]; !ok {
-		return "未找到房间", false
-	}
-	alreadyJoined := len(s.Rooms[roomID].Users[userID]) > 0
-	s.joinAccountRoomUnsafe(users[0], roomID)
-	if alreadyJoined {
-		return "已加入房间", true
-	}
-	return "加入房间", true
+	return s.joinRoomForUser(userID, roomID)
 }
 
-// 退出房间
-func (s *Server) LeaveRoomH(userID int64, roomID int64) (string, bool) {
-	s.mapLock.Lock()
-	defer s.mapLock.Unlock()
-	users, ok := s.OnlineUsers[userID]
-	if !ok {
-		return "未找到用户", false
-	}
-	if _, ok := s.Rooms[roomID]; !ok {
-
-		return "当前房间不存在", false
-	}
-	for _, u := range users {
-		if u.InRoom(roomID) {
-			s.leaveRoomUnsafe(u, roomID)
-			return "退出房间", true
-		}
-	}
-
-	return "未加入房间", true
+// HTTP 退出房间
+func (s *Server) LeaveRoomH(userID, roomID int64) (string, bool) {
+	return s.leaveRoomForUser(userID, roomID)
 }

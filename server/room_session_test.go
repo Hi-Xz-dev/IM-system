@@ -1,9 +1,12 @@
 package server
 
 import (
+	"context"
 	"sync"
 	"testing"
 
+	"IM-system/internal/domain"
+	"IM-system/internal/protocol"
 	"IM-system/room"
 	"IM-system/user"
 )
@@ -40,7 +43,12 @@ func setupRoomSessions(t *testing.T) (*Server, *room.Room, *user.User, *user.Use
 func TestJoinSynchronizesAccountSessions(t *testing.T) {
 	for _, entry := range []string{"command", "http", "create"} {
 		t.Run(entry, func(t *testing.T) {
-			s := NewServer("127.0.0.1", 0, nil, nil, nil, testMessagePublisher{})
+			var notifications []domain.Message
+			publisher := testMessagePublisher{publish: func(_ context.Context, msg domain.Message) error {
+				notifications = append(notifications, msg)
+				return nil
+			}}
+			s := NewServer("127.0.0.1", 0, nil, nil, nil, publisher)
 			a1, a2 := newRoomTestSession(1), newRoomTestSession(1)
 			s.Online(a1)
 			s.Online(a2)
@@ -57,6 +65,9 @@ func TestJoinSynchronizesAccountSessions(t *testing.T) {
 					} else if msg, ok := s.JoinRoomH(a1.ID, 1); !ok {
 						t.Fatal(msg)
 					}
+				}
+				if len(notifications) != 1 || notifications[0].Content != "加入房间" {
+					t.Fatalf("expected one join notification, got %+v", notifications)
 				}
 			}
 			if !a1.InRoom(1) || !a2.InRoom(1) || len(s.Rooms[1].Users[1]) != 2 {
@@ -120,8 +131,10 @@ func TestExplicitLeaveRemovesAllAccountSessions(t *testing.T) {
 	for _, entry := range []string{"command", "http"} {
 		t.Run(entry, func(t *testing.T) {
 			s, r, a1, a2, b := setupRoomSessions(t)
+			wantDirectReplies := 0
 			if entry == "command" {
 				s.LeaveRoom(a2, r.ID)
+				wantDirectReplies = 1
 			} else if msg, ok := s.LeaveRoomH(a2.ID, r.ID); !ok {
 				t.Fatal(msg)
 			}
@@ -136,6 +149,14 @@ func TestExplicitLeaveRemovesAllAccountSessions(t *testing.T) {
 			}
 			if s.Rooms[r.ID] != r || len(r.Users[b.ID]) != 1 || !b.InRoom(r.ID) {
 				t.Fatal("another account's membership was changed")
+			}
+			s.LeaveRoom(a1, r.ID)
+			if len(b.C) != 1 || len(a1.C) != 1 || len(a2.C) != wantDirectReplies {
+				t.Fatal("expected one broadcast to the remaining member and direct replies only to command callers")
+			}
+			notice, err := protocol.DecodeMessage([]byte(<-b.C))
+			if err != nil || notice.Content != "离开房间" || notice.From != a2.ID {
+				t.Fatalf("unexpected leave notification: %+v (%v)", notice, err)
 			}
 		})
 	}

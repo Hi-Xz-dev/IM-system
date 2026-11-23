@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 )
 
 func setupAuthService(t *testing.T) (*Service, *repository.UserRepository, *sql.DB) {
@@ -386,5 +387,22 @@ func TestAuthenticate(t *testing.T) {
 
 	if user.ID == 0 {
 		t.Fatal("user id empty")
+	}
+
+	// 占住连接池的唯一连接，验证认证等待连接时也受查询期限约束。
+	db.SetMaxOpenConns(1)
+	held, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Close()
+
+	outerCtx, cancel := context.WithTimeout(ctx, authLookupTimeout+3*time.Second)
+	defer cancel()
+	if _, err := service.Authenticate(outerCtx, result.Token); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected authentication query timeout, got %v", err)
+	}
+	if outerCtx.Err() != nil {
+		t.Fatal("authentication waited for the outer deadline")
 	}
 }

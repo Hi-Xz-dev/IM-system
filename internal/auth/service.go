@@ -8,10 +8,13 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/go-sql-driver/mysql"
 )
+
+const authLookupTimeout = 5 * time.Second
 
 type Service struct {
 	userRepo   *repository.UserRepository
@@ -163,7 +166,9 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*model.User, 
 		return nil, err
 	}
 
-	user, err := s.userRepo.FindByID(ctx, userID)
+	dbCtx, cancel := context.WithTimeout(ctx, authLookupTimeout)
+	defer cancel()
+	user, err := s.userRepo.FindByID(dbCtx, userID)
 	if err != nil {
 		return nil, err
 	}
